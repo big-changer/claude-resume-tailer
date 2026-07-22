@@ -7,7 +7,11 @@ parser = argparse.ArgumentParser(
 )
 parser.add_argument(
     'resume_md',
-    help='Markdown file name in the output/ directory. The .md extension is optional.',
+    help=(
+        'Path to a markdown file relative to the output/ directory, '
+        "e.g. '20260722/cap-index-software-developer-evan-singleton-emphasize.md'. "
+        'The .md extension is optional.'
+    ),
 )
 args = parser.parse_args()
 
@@ -16,8 +20,8 @@ output_dir = root / 'output'
 
 resume_md = Path(args.resume_md)
 print(resume_md)
-if resume_md.is_absolute() or len(resume_md.parts) != 1:
-    raise ValueError('Pass only a file name from the output/ directory, not a path.')
+if resume_md.is_absolute() or '..' in resume_md.parts:
+    raise ValueError('Pass only a relative path inside the output/ directory, not a path.')
 if resume_md.suffix == '':
     resume_md = resume_md.with_suffix('.md')
 elif resume_md.suffix.lower() != '.md':
@@ -57,6 +61,24 @@ try:
     F = 'Arial'
 except Exception:
     F = 'Helvetica'   # fallback (limited Unicode)
+
+# ── Icon font ──────────────────────────────────────────────────────────────
+# Segoe UI Symbol has real outline glyphs for envelope/phone/pin/link (unlike
+# Segoe UI Emoji, which is a colour font ReportLab can't render).
+ICON_FONT = None
+ICONS = {
+    'email':    '✉',      # envelope
+    'phone':    '☎',      # telephone
+    'location': '\U0001F4CD',  # round pushpin
+    'link':     '\U0001F517',  # link
+}
+icon_font_path = font_dir / 'seguisym.ttf'
+if icon_font_path.exists():
+    try:
+        pdfmetrics.registerFont(TTFont('Icons', str(icon_font_path)))
+        ICON_FONT = 'Icons'
+    except Exception:
+        ICON_FONT = None
 
 # ── Colour palette ─────────────────────────────────────────────────────────
 DARK_BLUE  = colors.HexColor('#1B3A5C')
@@ -114,23 +136,40 @@ def md_inline(text: str) -> str:
     text = re.sub(r'\*(.+?)\*',     r'<i>\1</i>', text)
     return text
 
-def format_contact_links(text: str) -> str:
-    """Format markdown links with labels for display in contact line."""
-    # Extract links and add labels for clarity
-    # Pattern: [text](url) -> label: text (with special handling for GitHub username)
-    def replace_link(match):
-        link_text = match.group(1)
-        url = match.group(2)
-        # Identify link type by URL
-        if 'linkedin' in url.lower():
-            return f'<b>LinkedIn:</b> {escape_xml(link_text)}'
-        elif 'github' in url.lower():
-            # Extract just the username from github.com/username or https://github.com/username
-            username = link_text.split('/')[-1] if '/' in link_text else link_text
-            return f'<b>GitHub:</b> {escape_xml(username)}'
-        else:
-            return escape_xml(link_text)
-    return re.sub(r'\[([^\]]+)\]\(([^\)]+)\)', replace_link, text)
+def icon(key: str) -> str:
+    """Inline icon-font tag for a contact-info glyph, or '' if no icon font loaded."""
+    if not ICON_FONT:
+        return ''
+    ch = ICONS.get(key)
+    if not ch:
+        return ''
+    return f'<font name="{ICON_FONT}" size="9" color="#555555">{ch}</font> '
+
+def add_contact_icon(segment: str) -> str:
+    """Detect the contact-info type of a header segment and prefix it with an icon."""
+    link_match = re.match(r'^\[([^\]]+)\]\(([^)]+)\)$', segment.strip())
+    if link_match:
+        label, url = link_match.group(1), link_match.group(2)
+        url_l = url.lower()
+        if 'linkedin' in url_l:
+            return f'{icon("link")}<b>LinkedIn:</b> {escape_xml(label)}'
+        if 'github' in url_l:
+            username = label.split('/')[-1] if '/' in label else label
+            return f'{icon("link")}<b>GitHub:</b> {escape_xml(username)}'
+        return f'{icon("link")}{escape_xml(label)}'
+
+    text = segment.strip()
+    if re.match(r'^[\w.+-]+@[\w.-]+\.\w+$', text):
+        return f'{icon("email")}{escape_xml(text)}'
+    if re.match(r'^\+?[\d][\d\s().-]{5,}$', text):
+        return f'{icon("phone")}{escape_xml(text)}'
+    if 'linkedin.com' in text.lower():
+        return f'{icon("link")}<b>LinkedIn:</b> {escape_xml(text)}'
+    if 'github.com' in text.lower():
+        username = text.rstrip('/').split('/')[-1]
+        return f'{icon("link")}<b>GitHub:</b> {escape_xml(username)}'
+    # Fallback: treat as a location / generic line
+    return f'{icon("location")}{escape_xml(text)}'
 
 def parse_markdown_table(lines: list, start_idx: int) -> tuple:
     """Parse a markdown table starting at start_idx. Returns (table_data, end_idx)."""
@@ -235,11 +274,9 @@ while i < len(lines):
                 story.append(Paragraph(md_inline(nxt_clean), SUB_STYLE))
                 subtitle_added = True
             elif nxt and subtitle_added:
-                # Collect all contact lines (can be multiple)
-                contact = nxt.replace('|', ' · ')
-                contact = remove_emoji(contact)
-                contact = format_contact_links(contact)  # Add labels to links
-                contact_lines.append(contact)
+                # Collect all contact lines (can be multiple), icon-tagging each segment
+                segments = [remove_emoji(seg.strip()) for seg in nxt.split('|')]
+                contact_lines.append(' · '.join(add_contact_icon(seg) for seg in segments if seg))
             j += 1
 
         # Add all contact lines together
