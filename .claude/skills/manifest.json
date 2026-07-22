@@ -1,0 +1,158 @@
+{
+  "skills": [
+    {
+      "id": "resume-jd-optimizer",
+      "name": "Resume-JD Optimizer",
+      "version": "1.0.0",
+      "description": "All-in-one resume optimization skill combining job description analysis, master resume parsing, ATS optimization, and strategic keyword emphasis.",
+      "author": "Resume Generator Team",
+      "license": "MIT",
+      "tags": [
+        "resume",
+        "ats",
+        "optimization",
+        "job-matching",
+        "keyword-emphasis",
+        "career"
+      ],
+      "keywords": [
+        "Resume",
+        "ATS Optimization",
+        "Job Description",
+        "Career",
+        "Keyword Emphasis",
+        "Professional Development"
+      ],
+      "fileLocation": "resume-jd-optimizer.md",
+      "inputs": [
+        {
+          "name": "jd_path",
+          "description": "Path to job description file (default: input/jd.txt)",
+          "type": "file_path",
+          "required": false,
+          "default": "input/jd.txt"
+        },
+        {
+          "name": "resume_path",
+          "description": "Path to master resume file (default: input/master-resume.md)",
+          "type": "file_path",
+          "required": false,
+          "default": "input/master-resume.md"
+        },
+        {
+          "name": "output_dir",
+          "description": "Output directory for optimized resume (default: output_{YYYY-MM-DD})",
+          "type": "string",
+          "required": false,
+          "default": "output_{YYYY-MM-DD}"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "optimized_resume",
+          "description": "Markdown resume file with ATS optimization and keyword emphasis",
+          "type": "markdown",
+          "filename_pattern": "{company}-{position}-{name}-emphasize.md"
+        },
+        {
+          "name": "optimization_summary",
+          "description": "Detailed report of changes, gaps, and optimization details",
+          "type": "text"
+        }
+      ],
+      "features": [
+        "Job Description Analysis",
+        "Resume Parsing & Restructuring",
+        "Skill Gap Analysis",
+        "ATS Optimization",
+        "Keyword Emphasis (Phase 5.5)",
+        "Achievement Quantification",
+        "Certificate Generation",
+        "Role-Specific Optimization",
+        "Quality Assurance"
+      ],
+      "phases": [
+        "Phase 1: Job Description Analysis",
+        "Phase 2: Master Resume Parsing",
+        "Phase 3: Gap Analysis & Matching",
+        "Phase 4: Certification Handling",
+        "Phase 5: Content Generation",
+        "Phase 5.5: ATS-Critical Keyword Emphasis ⭐",
+        "Phase 6: Quality Assurance",
+        "Phase 7: Output & Handoff"
+      ],
+      "roles": [
+        "Frontend Engineer",
+        "Backend Engineer",
+        "DevOps/SRE Engineer",
+        "AI/LLM Engineer",
+        "Mobile Engineer",
+        "Full-Stack Engineer"
+      ],
+      "success_metrics": {
+        "ats_keywords": "15-25 keywords from JD naturally integrated",
+        "achievement_quantification": "80%+ of bullets quantified",
+        "keyword_placement": "Top keywords in Summary + Skills + Bullets",
+        "requirement_coverage": "All MUST-HAVE JD requirements addressed",
+        "factual_accuracy": "100% accuracy maintained",
+        "visual_balance": "Professional appearance (not overdone)",
+        "production_ready": "Ready for actual job submission"
+      },
+      "constraints": [
+        "Never fabricate experience or dates",
+        "Always maintain 100% factual integrity",
+        "Mark all AI-generated content clearly",
+        "Never claim skills without confirmation",
+        "Avoid keyword stuffing or manipulation",
+        "Never oversell achievements",
+        "Keep career narrative authentic"
+      ],
+      "research_basis": {
+        "ats_evolution": "Modern ATS use ML for contextual relevance scoring",
+        "quantified_metrics": "Numbers parse as structured data and score higher",
+        "keyword_strategy": "Natural integration (1-3x) works better than stuffing",
+        "keyword_emphasis": "Strategic bolding helps recruiters (doesn't affect ATS)",
+        "formatting": "Simple formatting (Arial, plain text) optimal for parsing",
+        "sources": [
+          "Scale.jobs ATS Algorithms (2026)",
+          "ATS Resume Optimization 2025 - TopResume",
+          "SWE Resume Keywords 2026 - AI Applyd",
+          "Resume Matching Algorithms - ResumeMatcher.fyi"
+        ]
+      },
+      "example_workflow": {
+        "step1": "Prepare input/jd.txt and input/master-resume.md",
+        "step2": "Run skill with provided files",
+        "step3": "Skill processes through 7 phases",
+        "step4": "Skill asks clarifying questions for gaps",
+        "step5": "Skill generates optimized resume with emphasis",
+        "step6": "Review output_{date}/{company}-{position}-{name}-emphasize.md",
+        "step7": "Convert to PDF and submit"
+      },
+      "created_date": "2026-07-22",
+      "last_updated": "2026-07-22",
+      "status": "production",
+      "compatibility": {
+        "claude_versions": [
+          "Claude 3.5 Sonnet",
+          "Claude 3.7 Opus",
+          "Claude 4.0 Fable"
+        ],
+        "platforms": [
+          "Claude.ai",
+          "Claude Code CLI",
+          "Claude API",
+          "IDE Extensions"
+        ]
+      }
+    }
+  ],
+  "repository": {
+    "name": "resume-generator",
+    "description": "Comprehensive resume optimization and generation toolkit",
+    "url": "https://github.com/your-org/resume-generator",
+    "skills_directory": ".claude/skills_v2"
+  },
+  "version": "1.0.0",
+  "last_updated": "2026-07-22"
+}
