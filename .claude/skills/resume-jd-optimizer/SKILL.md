@@ -18,12 +18,15 @@ Output:
 
 Simply run the skill with your files and get an optimized resume ready to submit.
 
-Note: This skill runs fully autonomously — it never interrupts you with questions.
-Any gap (missing skill, metric, or certification) is resolved with the best
-available judgment call and logged in the final report instead. If you want to
-add real facts (a real metric, a confirmed skill, a real certificate), edit
-input/master-resume.md directly — that file is the source of truth and the
-skill will reflect any such input back into it for future runs.
+Note: This skill runs autonomously with one exception: if the JD introduces
+tech skills that aren't in your master resume (Phase 1.5), you'll get a single
+multi-select checkbox prompt to confirm which ones you actually have — the
+skill never assumes you have a skill just because the JD mentions it. Every
+other gap (missing metric, missing certification, etc.) is resolved with the
+best available judgment call and logged in the final report instead. If you
+want to add real facts (a real metric, a confirmed skill, a real certificate),
+edit input/master-resume.md directly — that file is the source of truth and
+the skill will reflect any such input back into it for future runs.
 ```
 
 ### For Developers
@@ -133,6 +136,39 @@ Parse the JD and structure:
 
 ---
 
+## PHASE 1.5: NEW SKILL DETECTION & HUMAN CONFIRMATION ⚠️
+
+This is the **one** point in the workflow where the skill interrupts the run to ask the user something. Everywhere else it proceeds autonomously. The reason: AI keyword-spotting against a JD is noisy — it over-triggers on generic words, near-duplicates of skills already listed under different names, and technologies the JD merely mentions in passing rather than requires. Silently writing any of that into `input/master-resume.md`'s skills list would fabricate claims about the candidate. So this phase narrows the field to genuine candidates first, then hands the final call to a human via a well-evidenced checkbox prompt — never an open-ended "does this look right?" question.
+
+### Step 1 — Build the candidate list (do this narrowing *before* asking anything)
+1. Take the JD's "Key technologies" and "Must-have / Nice-to-have skills" from Phase 1.
+2. Normalize both the JD terms and everything in the master resume's **Section 1 "All Available Skills"** — case-insensitively, and collapsing well-known aliases (".NET" / ".NET Core" / "dotnet", "JavaScript" / "JS", "Kubernetes" / "K8s", "Postgres" / "PostgreSQL", etc.). Do not treat a mere alias as a new skill.
+3. Drop generic non-skill noise (e.g. "software", "programming", "experience", "team player") — these are not tech skills regardless of JD phrasing.
+4. For every JD term that survives steps 2–3 with no match in Section 1, check the **rest of the master resume** (project descriptions, behavioral section, concise profile) for the term:
+   - **Evidenced elsewhere, missing from Section 1** → likely just an itemization gap.
+   - **Not evidenced anywhere** → genuinely new claim; needs stronger confirmation.
+5. Rank the resulting candidate list: MUST-HAVE JD skills first, then NICE-TO-HAVE, ties broken by JD keyword frequency/emphasis.
+
+If the candidate list is empty, skip straight to Phase 2 — do not ask a trivial or empty-handed question.
+
+### Step 2 — Ask, with real evidence per option
+Use the question tool's multi-select mode. Each question covers up to 4 skills (the tool caps options at 4 and questions at 4 per call, so one call covers up to 16 skills — for a well-scoped JD this should never be exceeded; in the rare case it is, ask about the top 16 by the Step 1 ranking and treat the rest as ordinary missing-skill gaps for this run, noting them in the Phase 7 report as "not asked about — resubmit or add manually if applicable").
+
+Group questions thematically (e.g. one question for languages/frameworks, one for data/infra, one for testing/certs) rather than dumping unrelated skills into one bucket — this keeps each question scannable.
+
+**Every option's description must state where the term came from and what evidence (if any) exists**, so the human isn't confirming blind — for example:
+- "JD lists this as a must-have (\"5+ years experience with X\"). Not found anywhere in your master resume."
+- "JD mentions this as nice-to-have. Appears in your 'Decentralized Consent Management' project description, but isn't itemized in Section 1."
+
+Phrase the question itself as a factual check, not a sales pitch — e.g. "Which of these JD-mentioned skills do you actually have hands-on experience with?" — so the human isn't nudged toward over-confirming.
+
+### Step 3 — Apply the answers
+- **Confirmed (checked) skills**: add each to `input/master-resume.md` Section 1, under the closest existing category if one fits, otherwise create a new category. This is a direct edit to the source-of-truth file (see **MASTER RESUME SYNC**), not just an in-memory note — future runs must see it too. Treat these as exact matches for the rest of *this* run (Phase 3 onward).
+- **Unchecked / declined skills**: do not add them anywhere. Treat as a normal "Missing Critical Skill" for the rest of this run, per **Autonomous Gap Resolution** in Phase 3 — do not ask about the same skill again within the run.
+- Log every confirmed addition and every declined candidate in the Phase 7 report (see **Gaps & Notes**), so the human has a record of what was added and what was skipped.
+
+---
+
 ## PHASE 2: MASTER RESUME PARSING
 
 ### Extract Structured Information
@@ -148,6 +184,12 @@ Parse the JD and structure:
 
 ### Assess Experience Relevance
 Score each role for relevance to target position (90-100 high, 60-89 medium, 0-59 low)
+
+### Always-Include Core Skills (Master Resume Section 2)
+
+Master resume **Section 2, "Always-Required / Core Skills"** (including its "Strong Supporting Skills" subsection) plays a different role than **Section 1, "All Available Skills."** Section 1 is the full pool that gets filtered and prioritized against the JD as usual. Section 2 is the candidate's own standing declaration of the skills that must appear in *every* output resume — it is an identity/branding constraint set by the candidate, not a JD-relevance filter.
+
+**This means**: never drop, omit, or silently skip a Section 2 skill just because the target JD is unrelated to it (e.g. a blockchain-heavy Section 2 for a conventional enterprise .NET JD). Section 2 skills are surfaced in the Technical Skills section per the rule in **5.4**, even when they score zero relevance against the JD. Do not fabricate JD-relevance for them and do not bold them unless they also happen to be genuine JD keywords — they're included for the candidate's own positioning, not to game ATS matching on this specific posting.
 
 ---
 
@@ -168,11 +210,11 @@ Create comparison matrix:
 4. **Missing Metrics**: Resolve autonomously (see below)
 5. **Missing Certifications**: Default to AI-generated, clearly marked (Phase 4, Option 3)
 
-### Autonomous Gap Resolution (No Interactive Prompts)
+### Autonomous Gap Resolution (No Interactive Prompts Here)
 
-This skill never pauses mid-run to ask the user a question. For every gap, make the best-judgment call immediately and log the decision in the Phase 7 report instead:
+By this point, Phase 1.5 has already asked the one question this skill asks — any JD skill the human confirmed is now in the master resume and counts as an exact match. Everything that reaches this phase (declined skills, missing metrics, missing certifications) is resolved without further interruption. For every remaining gap, make the best-judgment call immediately and log the decision in the Phase 7 report instead:
 
-- **Missing critical skill with no trace in master resume**: Do not fabricate. Omit it from Skills/Summary, but if a closely related/adjacent skill exists (e.g. resume has "Kubernetes" and JD wants "Helm"), bridge it as a partial match instead. Note the gap in the final report as an item the candidate may want to add to `input/master-resume.md` themselves.
+- **Missing critical skill with no trace in master resume** (including skills declined in Phase 1.5): Do not fabricate. Omit it from Skills/Summary, but if a closely related/adjacent skill exists (e.g. resume has "Kubernetes" and JD wants "Helm"), bridge it as a partial match instead. Note the gap in the final report as an item the candidate may want to add to `input/master-resume.md` themselves.
 - **Missing metric/number for an achievement**: Never invent a specific fake number. Either (a) use a qualitative but honest phrasing ("significantly reduced latency"), or (b) use a conservative, clearly-scoped estimate only if the surrounding master-resume text implies a range. Flag any estimate in the report.
 - **Missing certification**: Default straight to Phase 4 Option 3 (AI-generated, clearly marked) — do not ask whether the candidate holds it. Only use Option 1/2 if the certification is already explicitly present in the master resume.
 
@@ -284,6 +326,7 @@ Obtained: 03/2023 | Expires: 03/2026 | Credential ID: aws-saa-pro-c7f4d2e9
 - Include spelled-out + acronym (e.g., "Kubernetes (K8s)")
 - Order by JD relevance (JD keywords first)
 - Each keyword appears 1-3 times max
+- **Always include every skill from master resume Section 2 ("Always-Required / Core Skills" + "Strong Supporting Skills")**, even when none of them match the JD — see **Always-Include Core Skills** in Phase 2. Place them under existing categories where they fit naturally; if none fit, add a dedicated category named for the candidate's actual domain (e.g. "Blockchain & Web3 Engineering") rather than forcing them into a JD-shaped category. Bold only the ones that are also genuine JD keywords — leave the rest unbolded so JD-driven emphasis stays clean.
 
 **Example Structure**:
 ```
@@ -362,6 +405,7 @@ adopted company-wide.
 **Principle**: `input/master-resume.md` is the single source of truth across runs. Any real, factual input the user provides during this workflow — whether typed in chat, or discovered because they edited the JD/resume files — must be reflected back into `input/master-resume.md` itself, not just used transiently in one output resume.
 
 ### When to sync back
+- The user checks a skill in the Phase 1.5 confirmation prompt (this is the main, expected trigger)
 - The user states a real metric for a previously unquantified achievement
 - The user confirms real experience/skill that wasn't in the master resume
 - The user provides a real certification (credential ID, dates, issuer)
@@ -534,6 +578,7 @@ and **CI/CD pipelines**.
 - [ ] Achievements quantified (80%+)
 - [ ] Professional title updated
 - [ ] Technical skills organized
+- [ ] Every master resume Section 2 ("Always-Required / Core Skills") item appears somewhere in Technical Skills, even if JD-irrelevant
 
 ---
 
@@ -561,6 +606,8 @@ and **CI/CD pipelines**.
 - Achievement bullets quantified: [%]
 
 ### Gaps & Notes:
+- New skills confirmed via Phase 1.5 and added to master resume: [List, or "None detected"]
+- New skills the candidate declined in Phase 1.5: [List, or "None"]
 - Missing skills: [List with status — bridged, omitted, or flagged]
 - Master resume updates made: [List any edits synced into input/master-resume.md, or "None"]
 - AI-generated content: [List sections]
@@ -609,12 +656,14 @@ Always print that exact `python scripts/convert_resume.py "..."` command, filled
 
 | Scenario | Action |
 |----------|--------|
-| Master resume missing JD skill | Bridge via closest adjacent skill if one exists; otherwise omit and flag in report (no question asked) |
+| JD mentions a tech skill not in the master resume | Phase 1.5: ask via a well-evidenced multi-select checkbox prompt; add only what's checked |
+| Master resume missing JD skill after Phase 1.5 (declined or non-tech gap) | Bridge via closest adjacent skill if one exists; otherwise omit and flag in report (no question asked) |
 | JD requires certification not held | Auto-generate, clearly marked "[AI-Generated]" (default path, no question asked) |
 | Missing metrics | Use honest qualitative phrasing, or a clearly-scoped conservative estimate; flag in report — never invent a fake number |
 | Combination role | Prioritize first, highlight secondary skills |
 | Junior candidate for senior role | Don't force seniority; highlight relevant depth |
 | User supplies a real fact mid-session (metric, skill, cert) | Reflect it into `input/master-resume.md` per **MASTER RESUME SYNC**, then use it in output |
+| JD is very different from master resume Section 2 ("Always-Required / Core Skills") | Include those skills in Technical Skills anyway (own category if needed); do not bold unless also a genuine JD keyword — see **Always-Include Core Skills** in Phase 2 |
 
 ---
 
@@ -639,10 +688,10 @@ An optimized resume is successful when:
 
 ### Absolute No-Fabrication Rule
 - ✗ Never invent experience, dates, or companies
-- ✗ Never claim skills that appear nowhere in the master resume
-- ✓ Resolve gaps autonomously per **Autonomous Gap Resolution** — never block the run on a question
+- ✗ Never claim a JD-only skill as the candidate's own without the Phase 1.5 human confirmation checkbox being checked
+- ✓ Resolve every other gap autonomously per **Autonomous Gap Resolution** — never block the run on a question outside of Phase 1.5
 - ✓ Reorder, reframe, and emphasize existing content only
-- ✓ If real new information does surface, persist it into `input/master-resume.md` (see **MASTER RESUME SYNC**) rather than asking about it repeatedly on future runs
+- ✓ If real new information does surface (via Phase 1.5 or otherwise), persist it into `input/master-resume.md` (see **MASTER RESUME SYNC**) rather than asking about it repeatedly on future runs
 
 ### Maintain Authenticity
 - Don't distort achievements to fit JD
