@@ -13,7 +13,7 @@ Input:
   - input/master-resume.md (Master resume)
 
 Output:
-  - output_{YYYYMMDD}/{company}-{position}-{name}-emphasize.md
+  - output/{YYYYMMDD}/{company}-{position}-{name}-emphasize.md
   - Optimized resume with ATS keyword emphasis
 
 Simply run the skill with your files and get an optimized resume ready to submit.
@@ -596,9 +596,12 @@ and **CI/CD pipelines**.
 3. If `input/master-resume.md` was updated during this run, review those edits
 
 **Next steps**:
-- Convert to PDF
+- Convert to PDF by running:
+  `python scripts/convert_resume.py "{YYYYMMDD}/{company}-{position}-{name}-emphasize.md"`
 - Submit with confidence!
 ```
+
+Always print that exact `python scripts/convert_resume.py "..."` command, filled in with the real output subpath, as the literal last line of the handoff message — so the user can copy-paste it straight from the response.
 
 ---
 
