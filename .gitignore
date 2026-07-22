@@ -1,4 +1,5 @@
-input/
+input/*
+!input/master-resume-bone.md
 output_*/
 output/
 .venv
