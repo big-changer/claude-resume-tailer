@@ -14,7 +14,7 @@ Input:
 
 Output:
   - output/{YYYYMMDD}/{company}-{position}-{name}-emphasize.md
-  - output/{YYYYMMDD}/{company}-{position}-{name}-emphasize_cover.md
+  - output/{YYYYMMDD}/{company}-{position}-{name}-emphasize-cover.md
   - Optimized resume with ATS keyword emphasis, plus a matching cover letter
 
 Simply run the skill with your files and get an optimized resume and cover letter ready to submit.
@@ -578,7 +578,7 @@ Produce a companion cover letter for the same application, generated from the JD
 
 ### File Naming & Output
 - Save alongside the resume in the same `{output_dir}`.
-- Filename = resume filename stem + `_cover.md`. If the resume is `{company}-{position}-{name}-emphasize.md`, the cover letter is `{company}-{position}-{name}-emphasize_cover.md`.
+- Filename = resume filename stem + `-cover.md`. If the resume is `{company}-{position}-{name}-emphasize.md`, the cover letter is `{company}-{position}-{name}-emphasize-cover.md`.
 - Plain Markdown (headers + paragraphs, no tables/bullets needed) so it converts through `scripts/convert_resume.py` unmodified, same as the resume.
 
 ---
@@ -624,7 +624,7 @@ Produce a companion cover letter for the same application, generated from the JD
 - [ ] Every achievement/claim traceable to the optimized resume or master resume
 - [ ] 250-400 words, 3-4 paragraphs
 - [ ] No personal anecdote built around an AI-generated certification
-- [ ] Filename follows `{resume filename stem}_cover.md` convention, saved in the same output directory
+- [ ] Filename follows `{resume filename stem}-cover.md` convention, saved in the same output directory
 
 ---
 
@@ -669,7 +669,7 @@ Produce a companion cover letter for the same application, generated from the JD
 
 **File naming**:
 - Resume: `{company}-{position}-{name}-emphasize.md`
-- Cover letter: `{company}-{position}-{name}-emphasize_cover.md`
+- Cover letter: `{company}-{position}-{name}-emphasize-cover.md`
 
 **Save Location**: `{output_dir}/{filename}.md` for both files (same directory)
 
@@ -699,11 +699,11 @@ Produce a companion cover letter for the same application, generated from the JD
 - Convert to PDF by running:
   `python scripts/convert_resume.py "{YYYYMMDD}/{company}-{position}-{name}-emphasize"`
 - This also generates the cover letter PDF automatically (it looks for the paired
-  `..._cover.md` next to the resume and converts it too) — no separate command needed.
+  `...-cover.md` next to the resume and converts it too) — no separate command needed.
 - Submit with confidence!
 ```
 
-`scripts/convert_resume.py` takes the resume's path (extension optional) and produces both `{name}.pdf` and, if the paired `{name}_cover.md` exists alongside it, `{name}_cover.pdf` — one command, two PDFs. Always print that exact command, filled in with the real output subpath, as the literal last line of the handoff message — so the user can copy-paste it straight from the response. The user runs the conversion manually; this skill never executes it on their behalf.
+`scripts/convert_resume.py` takes the resume's path (extension optional) and produces both `{name}.pdf` and, if the paired `{name}-cover.md` exists alongside it, `{name}-cover.pdf` — one command, two PDFs. Always print that exact command, filled in with the real output subpath, as the literal last line of the handoff message — so the user can copy-paste it straight from the response. The user runs the conversion manually; this skill never executes it on their behalf.
 
 Immediately after this handoff message, proceed to **Phase 8** below — don't wait for a separate user turn to ask about additional questions.
 
