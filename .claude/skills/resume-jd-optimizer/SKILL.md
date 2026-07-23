@@ -27,6 +27,12 @@ best available judgment call and logged in the final report instead. If you
 want to add real facts (a real metric, a confirmed skill, a real certificate),
 edit input/master-resume.md directly — that file is the source of truth and
 the skill will reflect any such input back into it for future runs.
+
+After the resume is delivered, the skill also asks (Phase 8) whether you have
+any other questions from the job posting or application form — screening
+questions, "why do you want this role" type prompts, etc. — and will draft
+short, human-sounding answers grounded in your optimized resume. It keeps
+asking after each answer until you say you're done.
 ```
 
 ### For Developers
@@ -650,6 +656,40 @@ and **CI/CD pipelines**.
 
 Always print that exact `python scripts/convert_resume.py "..."` command, filled in with the real output subpath, as the literal last line of the handoff message — so the user can copy-paste it straight from the response.
 
+Immediately after this handoff message, proceed to **Phase 8** below — don't wait for a separate user turn to ask about additional questions.
+
+---
+
+## PHASE 8: POST-DELIVERY JOB QUESTIONS (Interactive Loop)
+
+Once the handoff message has been printed, the skill has one more standing job: helping the candidate answer any other questions the job posting or application form throws at them (screening questions, "why this role/company", short-answer application fields, etc.), using the resume just generated as the factual grounding.
+
+### Step 1 — Ask
+
+Ask a single, plain, open-ended question — not a multi-select prompt, since the space of possible questions is unbounded:
+
+```
+Do you have any other questions from the job posting or application — screening
+questions, "why do you want this role" prompts, short-answer fields, etc.?
+Paste them and I'll draft answers grounded in the resume above. If not, you're
+all set.
+```
+
+If the user indicates they're done (no questions, "that's all", moves on to a different topic, etc.), stop the loop — do not ask again this session.
+
+### Step 2 — Answer
+
+For each question the user shares:
+- **Ground every claim in the just-generated optimized resume** (and `input/master-resume.md` where the resume doesn't have enough detail). Never introduce a fact, project, or metric that isn't already in one of those two files — same no-fabrication rule as the rest of this skill.
+- **Write like a human, not an AI.** Short and clean: 2–5 sentences for a typical screening question, longer only if the question explicitly asks for depth (e.g. "describe a challenging project"). No corporate filler ("I am a highly motivated professional..."), no restating the question, no bullet-point lists unless the question itself asks for one, no hedging disclaimers about being an AI.
+- Answer in first person, as the candidate would.
+- If a question can't be answered from the two source files without fabricating (e.g. it asks about salary expectations, availability, visa status, or a fact simply not present anywhere), say so plainly and ask the user for the real answer instead of guessing — do not invent it.
+- If, in the course of answering, the user volunteers a new real fact (a project detail, a metric, a motivation) that would strengthen the resume itself, treat it per **MASTER RESUME SYNC** — offer to fold it into `input/master-resume.md` rather than letting it evaporate into a one-off chat answer.
+
+### Step 3 — Repeat
+
+After delivering the answer(s), return to Step 1 and ask again whether there are any more questions. Keep looping — one round per batch of questions the user pastes — until the user signals they're done.
+
 ---
 
 ## EDGE CASES & HANDLING
@@ -664,6 +704,8 @@ Always print that exact `python scripts/convert_resume.py "..."` command, filled
 | Junior candidate for senior role | Don't force seniority; highlight relevant depth |
 | User supplies a real fact mid-session (metric, skill, cert) | Reflect it into `input/master-resume.md` per **MASTER RESUME SYNC**, then use it in output |
 | JD is very different from master resume Section 2 ("Always-Required / Core Skills") | Include those skills in Technical Skills anyway (own category if needed); do not bold unless also a genuine JD keyword — see **Always-Include Core Skills** in Phase 2 |
+| User shares extra job/application questions after delivery | Phase 8: answer grounded in the optimized resume + master resume, short and human-sounding, never fabricated; ask again after each round until user is done |
+| Extra question can't be answered without fabricating (salary, visa, availability, etc.) | Say so plainly and ask the user for the real answer — do not guess |
 
 ---
 
