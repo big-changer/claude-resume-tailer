@@ -3,35 +3,24 @@ import argparse
 import re
 
 parser = argparse.ArgumentParser(
-    description='Convert a resume markdown file to PDF.'
+    description='Convert a resume markdown file (and its paired cover letter, if present) to PDF.'
 )
 parser.add_argument(
     'resume_md',
+    nargs='+',
     help=(
-        'Path to a markdown file relative to the output/ directory, '
-        "e.g. '20260722/cap-index-software-developer-evan-singleton-emphasize.md'. "
-        'The .md extension is optional.'
+        'One or more paths to resume markdown files relative to the output/ directory, '
+        "e.g. '20260722/cap-index-software-developer-evan-singleton-emphasize'. "
+        'The .md extension is optional. For each path given, its resume PDF is '
+        "produced, and if a paired '<name>-cover.md' file exists alongside it, "
+        'that cover letter is automatically converted to PDF too — no need to '
+        'pass the cover letter path separately.'
     ),
 )
 args = parser.parse_args()
 
 root = Path(__file__).resolve().parent.parent
 output_dir = root / 'output'
-
-resume_md = Path(args.resume_md)
-print(resume_md)
-if resume_md.is_absolute() or '..' in resume_md.parts:
-    raise ValueError('Pass only a relative path inside the output/ directory, not a path.')
-if resume_md.suffix == '':
-    resume_md = resume_md.with_suffix('.md')
-elif resume_md.suffix.lower() != '.md':
-    raise ValueError(f'Resume file must be a .md file: {resume_md}')
-
-md_path = (output_dir / resume_md).resolve()
-if output_dir.resolve() not in md_path.parents:
-    raise ValueError(f'Resume file must be inside output/: {resume_md}')
-if not md_path.exists():
-    raise FileNotFoundError(f'Resume markdown file not found: {md_path}')
 
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle
@@ -41,9 +30,6 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, HRFlowable,
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
-
-docx_path = md_path.with_suffix('.docx')
-pdf_path = md_path.with_suffix('.pdf')
 
 # ── Fonts ──────────────────────────────────────────────────────────────────
 # Arial supports Latvian characters (ē, ņ, š, etc.)
@@ -240,131 +226,159 @@ def hr():
     return HRFlowable(width='100%', thickness=0.8, color=RULE_COLOR,
                       spaceAfter=3*mm, spaceBefore=1*mm)
 
-# ── Parse markdown into flowables ──────────────────────────────────────────
-text  = md_path.read_text(encoding='utf-8')
-lines = text.splitlines()
+def resolve_md_path(raw_arg: str) -> Path:
+    """Validate a CLI path argument and resolve it to an absolute .md path inside output/."""
+    resume_md = Path(raw_arg)
+    if resume_md.is_absolute() or '..' in resume_md.parts:
+        raise ValueError('Pass only a relative path inside the output/ directory, not a path.')
+    if resume_md.suffix == '':
+        resume_md = resume_md.with_suffix('.md')
+    elif resume_md.suffix.lower() != '.md':
+        raise ValueError(f'File must be a .md file: {resume_md}')
 
-story = []
-i = 0
-header_done = False   # True after the H1 + subtitle + contact block
-skip_section = False  # True when we enter a section to exclude (Gap Analysis)
+    md_path = (output_dir / resume_md).resolve()
+    if output_dir.resolve() not in md_path.parents:
+        raise ValueError(f'File must be inside output/: {resume_md}')
+    if not md_path.exists():
+        raise FileNotFoundError(f'Markdown file not found: {md_path}')
+    return md_path
 
-while i < len(lines):
-    line = lines[i]
+def convert_to_pdf(md_path: Path) -> Path:
+    """Parse one markdown file into flowables and render it to a PDF next to itself."""
+    pdf_path = md_path.with_suffix('.pdf')
 
-    # ── Stop / skip sections not wanted in the resume PDF ──────────────────
-    if re.match(r'^##\s+Gap Analysis', line, re.IGNORECASE):
-        break   # everything after this is editorial notes
+    text  = md_path.read_text(encoding='utf-8')
+    lines = text.splitlines()
 
-    # ── H1 — candidate name ───────────────────────────────────────────────
-    if line.startswith('# '):
-        name = line[2:].strip()
-        story.append(Paragraph(escape_xml(name), NAME_STYLE))
-        # Next non-empty line is subtitle, then contact
-        j = i + 1
-        subtitle_added = False
-        contact_lines = []
-        while j < len(lines):
-            nxt = lines[j].strip()
-            if nxt == '' and (subtitle_added or contact_lines):
-                break
-            if nxt and not subtitle_added:
-                nxt_clean = remove_emoji(nxt)
-                nxt_clean = convert_markdown_links(nxt_clean)
-                story.append(Paragraph(md_inline(nxt_clean), SUB_STYLE))
-                subtitle_added = True
-            elif nxt and subtitle_added:
-                # Collect all contact lines (can be multiple), icon-tagging each segment
-                segments = [remove_emoji(seg.strip()) for seg in nxt.split('|')]
-                contact_lines.append(' · '.join(add_contact_icon(seg) for seg in segments if seg))
-            j += 1
+    story = []
+    i = 0
 
-        # Add all contact lines together
-        if contact_lines:
-            combined_contact = ' · '.join(contact_lines)
-            story.append(Paragraph(combined_contact, CONTACT_STYLE))
-        i = j + 1
-        header_done = True
-        continue
+    while i < len(lines):
+        line = lines[i]
 
-    # ── Horizontal rule ────────────────────────────────────────────────────
-    if line.strip() == '---':
-        story.append(hr())
-        i += 1
-        continue
+        # ── Stop / skip sections not wanted in the PDF ──────────────────────
+        if re.match(r'^##\s+Gap Analysis', line, re.IGNORECASE):
+            break   # everything after this is editorial notes
 
-    # ── H2 — section header ───────────────────────────────────────────────
-    if line.startswith('## '):
-        title = line[3:].strip()
-        story.append(Paragraph(escape_xml(title).upper(), H2_STYLE))
-        i += 1
-        continue
+        # ── H1 — candidate name ───────────────────────────────────────────────
+        if line.startswith('# '):
+            name = line[2:].strip()
+            story.append(Paragraph(escape_xml(name), NAME_STYLE))
+            # Next non-empty line is subtitle, then contact
+            j = i + 1
+            subtitle_added = False
+            contact_lines = []
+            while j < len(lines):
+                nxt = lines[j].strip()
+                if nxt == '' and (subtitle_added or contact_lines):
+                    break
+                if nxt and not subtitle_added:
+                    nxt_clean = remove_emoji(nxt)
+                    nxt_clean = convert_markdown_links(nxt_clean)
+                    story.append(Paragraph(md_inline(nxt_clean), SUB_STYLE))
+                    subtitle_added = True
+                elif nxt and subtitle_added:
+                    # Collect all contact lines (can be multiple), icon-tagging each segment
+                    segments = [remove_emoji(seg.strip()) for seg in nxt.split('|')]
+                    contact_lines.append(' · '.join(add_contact_icon(seg) for seg in segments if seg))
+                j += 1
 
-    # ── H3 — company / institution ────────────────────────────────────────
-    if line.startswith('### '):
-        title = line[4:].strip()
-        story.append(Paragraph(escape_xml(title), H3_STYLE))
-        i += 1
-        continue
-
-    # ── Bullet point ──────────────────────────────────────────────────────
-    if line.startswith('- '):
-        content = md_inline(line[2:].strip())
-        story.append(Paragraph(f'• {content}', BULLET_STYLE))
-        i += 1
-        continue
-
-    # ── Table rows (| col | col |) — render as styled table ─────────────────
-    if line.strip().startswith('|'):
-        # Check if this is the start of a table by looking ahead
-        table_data, next_i = parse_markdown_table(lines, i)
-        if table_data:
-            tbl = create_skills_table(table_data)
-            story.append(tbl)
-            story.append(Spacer(1, 3*mm))
-            i = next_i
+            # Add all contact lines together
+            if contact_lines:
+                combined_contact = ' · '.join(contact_lines)
+                story.append(Paragraph(combined_contact, CONTACT_STYLE))
+            i = j + 1
             continue
-        else:
+
+        # ── Horizontal rule ────────────────────────────────────────────────────
+        if line.strip() == '---':
+            story.append(hr())
             i += 1
             continue
 
-    # ── Bold job-title / date line  e.g.  **Title** | date ────────────────
-    if line.startswith('**') and '|' in line:
+        # ── H2 — section header ───────────────────────────────────────────────
+        if line.startswith('## '):
+            title = line[3:].strip()
+            story.append(Paragraph(escape_xml(title).upper(), H2_STYLE))
+            i += 1
+            continue
+
+        # ── H3 — company / institution ────────────────────────────────────────
+        if line.startswith('### '):
+            title = line[4:].strip()
+            story.append(Paragraph(escape_xml(title), H3_STYLE))
+            i += 1
+            continue
+
+        # ── Bullet point ──────────────────────────────────────────────────────
+        if line.startswith('- '):
+            content = md_inline(line[2:].strip())
+            story.append(Paragraph(f'• {content}', BULLET_STYLE))
+            i += 1
+            continue
+
+        # ── Table rows (| col | col |) — render as styled table ─────────────────
+        if line.strip().startswith('|'):
+            # Check if this is the start of a table by looking ahead
+            table_data, next_i = parse_markdown_table(lines, i)
+            if table_data:
+                tbl = create_skills_table(table_data)
+                story.append(tbl)
+                story.append(Spacer(1, 3*mm))
+                i = next_i
+                continue
+            else:
+                i += 1
+                continue
+
+        # ── Bold job-title / date line  e.g.  **Title** | date ────────────────
+        if line.startswith('**') and '|' in line:
+            story.append(Paragraph(md_inline(line), BODY_STYLE))
+            i += 1
+            continue
+
+        # ── Primary Tech Stack line ────────────────────────────────────────────
+        if line.startswith('**Primary Tech Stack'):
+            story.append(Paragraph(md_inline(line), STACK_STYLE))
+            i += 1
+            continue
+
+        # ── Empty line ─────────────────────────────────────────────────────────
+        if line.strip() == '':
+            story.append(Spacer(1, 2*mm))
+            i += 1
+            continue
+
+        # ── Default — regular paragraph text ──────────────────────────────────
         story.append(Paragraph(md_inline(line), BODY_STYLE))
         i += 1
+
+    # ── Build PDF ────────────────────────────────────────────────────────────
+    doc = SimpleDocTemplate(
+        str(pdf_path),
+        pagesize=A4,
+        leftMargin=18*mm, rightMargin=18*mm,
+        topMargin=16*mm,  bottomMargin=16*mm,
+        title=md_path.stem,
+    )
+    doc.build(story)
+    return pdf_path
+
+
+converted = set()
+
+for raw_arg in args.resume_md:
+    md_path = resolve_md_path(raw_arg)
+    if md_path in converted:
         continue
+    pdf_path = convert_to_pdf(md_path)
+    converted.add(md_path)
+    print('Wrote', pdf_path)
 
-    # ── Primary Tech Stack line ────────────────────────────────────────────
-    if line.startswith('**Primary Tech Stack'):
-        story.append(Paragraph(md_inline(line), STACK_STYLE))
-        i += 1
-        continue
-
-    # ── Empty line ─────────────────────────────────────────────────────────
-    if line.strip() == '':
-        story.append(Spacer(1, 2*mm))
-        i += 1
-        continue
-
-    # ── Default — regular paragraph text ──────────────────────────────────
-    story.append(Paragraph(md_inline(line), BODY_STYLE))
-    i += 1
-
-# ── Build PDF ──────────────────────────────────────────────────────────────
-doc = SimpleDocTemplate(
-    str(pdf_path),
-    pagesize=A4,
-    leftMargin=18*mm, rightMargin=18*mm,
-    topMargin=16*mm,  bottomMargin=16*mm,
-    title=md_path.stem,
-)
-doc.build(story)
-print('Wrote', pdf_path)
-
-# ── Build DOCX (basic, unchanged behaviour) ────────────────────────────────
-# lines_all = md_path.read_text(encoding='utf-8').splitlines()
-# doc2 = Document()
-# for line in lines_all:
-#     doc2.add_paragraph('' if line.strip() == '' else line)
-# doc2.save(docx_path)
-# print('Wrote', docx_path)
+    # Auto-convert the paired cover letter, if one exists alongside this file.
+    if not md_path.stem.endswith('-cover'):
+        cover_path = md_path.with_name(md_path.stem + '-cover.md')
+        if cover_path.exists() and cover_path not in converted:
+            cover_pdf_path = convert_to_pdf(cover_path)
+            converted.add(cover_path)
+            print('Wrote', cover_pdf_path)

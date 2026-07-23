@@ -14,9 +14,10 @@ Input:
 
 Output:
   - output/{YYYYMMDD}/{company}-{position}-{name}-emphasize.md
-  - Optimized resume with ATS keyword emphasis
+  - output/{YYYYMMDD}/{company}-{position}-{name}-emphasize_cover.md
+  - Optimized resume with ATS keyword emphasis, plus a matching cover letter
 
-Simply run the skill with your files and get an optimized resume ready to submit.
+Simply run the skill with your files and get an optimized resume and cover letter ready to submit.
 
 Note: This skill runs autonomously with one exception: if the JD introduces
 tech skills that aren't in your master resume (Phase 1.5), you'll get a single
@@ -550,6 +551,38 @@ and **CI/CD pipelines**.
 
 ---
 
+## PHASE 5.8: COVER LETTER GENERATION
+
+### Purpose
+Produce a companion cover letter for the same application, generated from the JD analysis (Phase 1) and the **finalized, keyword-emphasized resume** (Phases 5 + 5.5) — not written from scratch. The cover letter must stay factually consistent with the resume: every claim, project, or metric it references must already appear in the resume or `input/master-resume.md`. Same no-fabrication rule as the rest of this skill.
+
+### Structure
+1. **Header** — identical in form to the resume header (name, title, contact line(s): email, phone, location, LinkedIn, GitHub), so the file renders correctly through the same PDF pipeline.
+2. **Date line** — today's date, `Month DD, YYYY`.
+3. **Recipient line** — `Hiring Manager` (or a named recruiter if the JD provides one) and the company name from Phase 1 (use the same placeholder Phase 1 settled on if the company name was never explicit in the JD).
+4. **Salutation** — `Dear Hiring Manager,` (or the named contact if known).
+5. **Opening paragraph** (2-3 sentences) — states the exact role being applied for and one immediate hook connecting the candidate's background to it (top JD keyword + years of experience).
+6. **Body paragraph(s)** (1-2 paragraphs) — 2-3 concrete, quantified achievements pulled directly from the optimized resume's Professional Experience section, chosen for direct relevance to the JD's must-have requirements. Weave in 3-5 top ATS keywords naturally as plain prose — no bolding; cover letters read as a narrative, not a scannable list.
+7. **Closing paragraph** (2-3 sentences) — reiterates fit, expresses genuine interest in the company/role specifically (reference something concrete from the JD: mission, product, team, problem space), and a call to action (interview availability).
+8. **Sign-off** — `Sincerely,` followed by the candidate's full name.
+
+### Tone & Style
+- Same human, non-generic register used throughout this skill (see Phase 8's answer-writing guidance): no "I am a highly motivated professional" filler, no restating the JD back verbatim, no over-claiming.
+- 250-400 words total, 3-4 body paragraphs.
+- First person, active voice, confident but not boastful.
+- Company-specific: reference the company name and at least one real detail from the JD (product, mission, team, problem). A cover letter generic enough to send to any company unmodified has failed this step.
+
+### Factual Integrity
+- Never introduce an achievement, project, or metric that isn't already in the optimized resume or `input/master-resume.md`.
+- If a certification is AI-generated (Phase 4, Option 3), it's fine to have it appear implicitly via the resume's skills, but do not build a personal anecdote or story around it in the cover letter narrative.
+
+### File Naming & Output
+- Save alongside the resume in the same `{output_dir}`.
+- Filename = resume filename stem + `_cover.md`. If the resume is `{company}-{position}-{name}-emphasize.md`, the cover letter is `{company}-{position}-{name}-emphasize_cover.md`.
+- Plain Markdown (headers + paragraphs, no tables/bullets needed) so it converts through `scripts/convert_resume.py` unmodified, same as the resume.
+
+---
+
 ## PHASE 6: QUALITY ASSURANCE
 
 ### ATS Compliance Checklist
@@ -586,6 +619,13 @@ and **CI/CD pipelines**.
 - [ ] Technical skills organized
 - [ ] Every master resume Section 2 ("Always-Required / Core Skills") item appears somewhere in Technical Skills, even if JD-irrelevant
 
+### Cover Letter Checklist
+- [ ] References the company name and at least one specific JD-derived detail (not generic/boilerplate)
+- [ ] Every achievement/claim traceable to the optimized resume or master resume
+- [ ] 250-400 words, 3-4 paragraphs
+- [ ] No personal anecdote built around an AI-generated certification
+- [ ] Filename follows `{resume filename stem}_cover.md` convention, saved in the same output directory
+
 ---
 
 ## PHASE 7: OUTPUT & HANDOFF
@@ -604,6 +644,7 @@ and **CI/CD pipelines**.
 5. Professional Experience: Reordered by relevance
 6. Achievements: Updated with metrics and emphasis
 7. New Sections: [List any AI-generated]
+8. Cover Letter: Generated (~[X] words), tailored to [Company]
 
 ### Skill Coverage:
 - Must-have keywords covered: [X/Y]
@@ -624,17 +665,21 @@ and **CI/CD pipelines**.
 - Job submission ✓
 ```
 
-### Create Output File
+### Create Output Files
 
-**File naming**: `{company}-{position}-{name}-emphasize.md`
+**File naming**:
+- Resume: `{company}-{position}-{name}-emphasize.md`
+- Cover letter: `{company}-{position}-{name}-emphasize_cover.md`
 
-**Save Location**: `{output_dir}/{filename}.md`
+**Save Location**: `{output_dir}/{filename}.md` for both files (same directory)
 
 ### User Handoff Message
 ```
 ✓ Resume optimization complete!
 
-**File saved to**: [Full path]
+**Files saved to**:
+- Resume: [Full path to resume .md]
+- Cover Letter: [Full path to cover letter .md]
 
 **Key changes**:
 - Professional title updated to match JD seniority
@@ -642,19 +687,23 @@ and **CI/CD pipelines**.
 - Technical skills reordered with JD requirements first
 - [X] achievement bullets quantified
 - Strategic keyword emphasis applied
+- Cover letter drafted, tailored to [Company]/[Position]
 
 **Before submitting**:
 1. Review AI-generated content (marked with [AI-Generated])
 2. Verify all achievements and dates
-3. If `input/master-resume.md` was updated during this run, review those edits
+3. Read the cover letter aloud — personalize tone/details before sending
+4. If `input/master-resume.md` was updated during this run, review those edits
 
 **Next steps**:
 - Convert to PDF by running:
-  `python scripts/convert_resume.py "{YYYYMMDD}/{company}-{position}-{name}-emphasize.md"`
+  `python scripts/convert_resume.py "{YYYYMMDD}/{company}-{position}-{name}-emphasize"`
+- This also generates the cover letter PDF automatically (it looks for the paired
+  `..._cover.md` next to the resume and converts it too) — no separate command needed.
 - Submit with confidence!
 ```
 
-Always print that exact `python scripts/convert_resume.py "..."` command, filled in with the real output subpath, as the literal last line of the handoff message — so the user can copy-paste it straight from the response.
+`scripts/convert_resume.py` takes the resume's path (extension optional) and produces both `{name}.pdf` and, if the paired `{name}_cover.md` exists alongside it, `{name}_cover.pdf` — one command, two PDFs. Always print that exact command, filled in with the real output subpath, as the literal last line of the handoff message — so the user can copy-paste it straight from the response. The user runs the conversion manually; this skill never executes it on their behalf.
 
 Immediately after this handoff message, proceed to **Phase 8** below — don't wait for a separate user turn to ask about additional questions.
 
@@ -706,6 +755,7 @@ After delivering the answer(s), return to Step 1 and ask again whether there are
 | JD is very different from master resume Section 2 ("Always-Required / Core Skills") | Include those skills in Technical Skills anyway (own category if needed); do not bold unless also a genuine JD keyword — see **Always-Include Core Skills** in Phase 2 |
 | User shares extra job/application questions after delivery | Phase 8: answer grounded in the optimized resume + master resume, short and human-sounding, never fabricated; ask again after each round until user is done |
 | Extra question can't be answered without fabricating (salary, visa, availability, etc.) | Say so plainly and ask the user for the real answer — do not guess |
+| Company name unresolvable from JD (Phase 1 placeholder used) | Cover letter recipient line uses the same placeholder; flag in Phase 7 report so the user knows to personalize it |
 
 ---
 
