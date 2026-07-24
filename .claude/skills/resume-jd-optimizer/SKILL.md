@@ -13,8 +13,8 @@ Input:
   - input/master-resume.md (Master resume)
 
 Output:
-  - output/{YYYYMMDD}/{company}-{position}-{name}-emphasize.md
-  - output/{YYYYMMDD}/{company}-{position}-{name}-emphasize-cover.md
+  - output/{YYYYMMDD}/{company}-{position}-{name}.md
+  - output/{YYYYMMDD}/{company}-{position}-{name}-cover.md
   - Optimized resume with ATS keyword emphasis, plus a matching cover letter
 
 Simply run the skill with your files and get an optimized resume and cover letter ready to submit.
@@ -554,7 +554,7 @@ and **CI/CD pipelines**.
 ## PHASE 5.8: COVER LETTER GENERATION
 
 ### Purpose
-Produce a companion cover letter for the same application, generated from the JD analysis (Phase 1) and the **finalized, keyword-emphasized resume** (Phases 5 + 5.5) — not written from scratch. The cover letter must stay factually consistent with the resume: every claim, project, or metric it references must already appear in the resume or `input/master-resume.md`. Same no-fabrication rule as the rest of this skill.
+Produce a companion cover letter for the same application, generated from the JD analysis (Phase 1) and the **finalized, keywordd resume** (Phases 5 + 5.5) — not written from scratch. The cover letter must stay factually consistent with the resume: every claim, project, or metric it references must already appear in the resume or `input/master-resume.md`. Same no-fabrication rule as the rest of this skill.
 
 ### Structure
 1. **Header** — identical in form to the resume header (name, title, contact line(s): email, phone, location, LinkedIn, GitHub), so the file renders correctly through the same PDF pipeline.
@@ -578,7 +578,7 @@ Produce a companion cover letter for the same application, generated from the JD
 
 ### File Naming & Output
 - Save alongside the resume in the same `{output_dir}`.
-- Filename = resume filename stem + `-cover.md`. If the resume is `{company}-{position}-{name}-emphasize.md`, the cover letter is `{company}-{position}-{name}-emphasize-cover.md`.
+- Filename = resume filename stem + `-cover.md`. If the resume is `{company}-{position}-{name}.md`, the cover letter is `{company}-{position}-{name}-cover.md`.
 - Plain Markdown (headers + paragraphs, no tables/bullets needed) so it converts through `scripts/convert_resume.py` unmodified, same as the resume.
 
 ---
@@ -668,8 +668,8 @@ Produce a companion cover letter for the same application, generated from the JD
 ### Create Output Files
 
 **File naming**:
-- Resume: `{company}-{position}-{name}-emphasize.md`
-- Cover letter: `{company}-{position}-{name}-emphasize-cover.md`
+- Resume: `{company}-{position}-{name}.md`
+- Cover letter: `{company}-{position}-{name}-cover.md`
 
 **Save Location**: `{output_dir}/{filename}.md` for both files (same directory)
 
@@ -697,7 +697,7 @@ Produce a companion cover letter for the same application, generated from the JD
 
 **Next steps**:
 - Convert to PDF by running:
-  `python scripts/convert_resume.py "{YYYYMMDD}/{company}-{position}-{name}-emphasize"`
+  `python scripts/convert_resume.py "{YYYYMMDD}/{company}-{position}-{name}"`
 - This also generates the cover letter PDF automatically (it looks for the paired
   `...-cover.md` next to the resume and converts it too) — no separate command needed.
 - Submit with confidence!
