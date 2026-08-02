@@ -3,3 +3,6 @@ input/*
 output_*/
 output/
 .venv
+reference
+__pycache__/
+data
