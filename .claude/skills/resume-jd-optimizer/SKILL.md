@@ -1,823 +1,848 @@
-# Resume-JD Optimizer: Complete Skill Package
+# Resume-JD Optimizer
 
-**All-in-one resume optimization skill combining job description analysis, master resume parsing, ATS optimization, and keyword emphasis.**
+Turns a job description plus the candidate's master resume into a tailored,
+two-page resume and a matching cover letter, both of which read as if a person
+wrote them.
 
----
-
-## 🚀 QUICK START
-
-### For Users
 ```
-Input: 
-  - input/jd.txt (Job description)
-  - input/master-resume.md (Master resume)
+Input:
+  - input/jd.txt                    job description
+  - input/master-resume.md          the source of truth for every FACT
+  - input/master-resume-{track}.md  per-track skill sources, selected in Phase 1.2
 
 Output:
   - output/{YYYYMMDD}/{company}-{position}-{name}.md
   - output/{YYYYMMDD}/{company}-{position}-{name}-cover.md
-  - Optimized resume with ATS keyword emphasis, plus a matching cover letter
-
-Simply run the skill with your files and get an optimized resume and cover letter ready to submit.
-
-Note: This skill runs autonomously with one exception: if the JD introduces
-tech skills that aren't in your master resume (Phase 1.5), you'll get a single
-multi-select checkbox prompt to confirm which ones you actually have — the
-skill never assumes you have a skill just because the JD mentions it. Every
-other gap (missing metric, missing certification, etc.) is resolved with the
-best available judgment call and logged in the final report instead. If you
-want to add real facts (a real metric, a confirmed skill, a real certificate),
-edit input/master-resume.md directly — that file is the source of truth and
-the skill will reflect any such input back into it for future runs.
-
-After the resume is delivered, the skill also asks (Phase 8) whether you have
-any other questions from the job posting or application form — screening
-questions, "why do you want this role" type prompts, etc. — and will draft
-short, human-sounding answers grounded in your optimized resume. It keeps
-asking after each answer until you say you're done.
+  - data/new-skills-{worktree}.md            appended, never asked about
+  - data/master-resume-gaps-{worktree}.md    appended, never asked about
 ```
 
-### For Developers
-```
-1. Copy the IMPLEMENTATION PROMPT section below
-2. Feed it to Claude as a system prompt
-3. Provide JD and master resume files
-4. Process through 7 phases (including Phase 5.5 keyword emphasis)
-5. Output optimized resume with strategic keyword bolding
-```
+The markdown is then rendered by `scripts/convert_resume.py`, which refuses to
+write a PDF unless the file passes every gate in `scripts/verify_resume.py`.
+**Those gates are the real specification.** Everything below exists to produce a
+file that passes them on the first try. Read the OUTPUT CONTRACT section before
+writing a single line of output.
+
+## The run does not stop to ask
+
+The resume and cover letter are always produced. There is no confirmation step,
+no "should I proceed anyway", no multi-select skill check. When the master
+resumes cannot support something the JD wants, the skill makes the best honest
+call it can, ships the deliverable, and **writes the problem to a file in
+`data/` for the candidate to review later.** Two files carry everything that
+would previously have been a question:
+
+| File | Holds |
+|---|---|
+| `data/new-skills-{worktree}.md` | JD skills with no match in any master resume |
+| `data/master-resume-gaps-{worktree}.md` | anything that made this run harder or weaker than it should have been |
+
+The only interactive point left is the Phase 8 follow-up loop, which happens
+**after** both files are written and never blocks the deliverable.
 
 ---
 
-## 📊 SKILL OVERVIEW
+# HOUSE STYLE
 
-### What It Does
-- **Analyzes** job description to extract role requirements, keywords, certifications
-- **Parses** master resume to extract all skills, experience, education, achievements
-- **Identifies** gaps between JD requirements and resume content
-- **Generates** ATS-optimized content: summaries, competencies, skills, achievement bullets
-- **Emphasizes** critical keywords with strategic bolding for visual clarity
-- **Produces** Markdown resume ready for PDF conversion and submission
+This is the part that has historically gone wrong, so it comes first.
 
-### Key Features
-✅ Role-specific optimization (Frontend/Backend/DevOps/AI/Mobile)
-✅ ATS-optimized keyword placement and formatting
-✅ Achievement quantification and reordering by relevance
-✅ Strategic keyword emphasis (Phase 5.5)
-✅ Intelligent certificate generation (when JD requires)
-✅ 100% factual integrity (never fabricates)
-✅ Complete transparency (all AI-generated sections marked)
-✅ Professional output (Markdown format, ready for submission)
+## Write like a person, not like a model
 
-### Success Metrics
-- 15-25 ATS keywords from JD naturally integrated
-- 80%+ of achievement bullets quantified
-- Top keywords appear in Summary + Skills + Bullets
-- All MUST-HAVE JD requirements addressed
-- Professional appearance (not overdone)
-- Production-ready for actual job submission
+- **No em dashes, en dashes, arrows, ellipsis characters, curly quotes, or
+  bullet glyphs.** Use a comma, a colon, a full stop, or a new sentence. Gate 1
+  blocks the build on any of them, and they are the single loudest tell that a
+  machine wrote the document.
+- **No AI register.** Banned outright: leverage, delve, seamless, robust and
+  scalable, spearhead, cutting-edge, showcase, underscore, pivotal, meticulous,
+  synergy, testament to, state-of-the-art, at the forefront, furthermore,
+  moreover, not only. Say the plain thing instead.
+- **No square brackets anywhere in the output.** Not for placeholders, not for
+  `[AI-Generated]` markers, not for `[to be supplied by candidate]`. If a fact is
+  not available, the entry is omitted from the resume and reported in chat.
+- Short declarative sentences. One idea per bullet. A number where a real number
+  exists, and plain language where one does not.
 
----
+## No inline bold
 
-## 🔧 IMPLEMENTATION PROMPT
+Bold is used in exactly one place: the label of a technical-skill row.
 
-**Use this entire section as your system prompt when running the skill.**
+Bolding keywords buys nothing at the ATS layer, which reads the plain text
+either way, and 250 bold runs on a page cancel each other out as emphasis. The
+document is scanned by a human in about 40 seconds; structure does that work,
+not typographic shouting. There is no keyword-emphasis pass in this skill.
 
----
+## Two pages, hard
 
-## SYSTEM CONTEXT
-
-You are an expert resume optimization agent specializing in ATS (Applicant Tracking System) compliance and job description matching. Your goal is to transform a candidate's master resume into a strategically optimized, role-specific resume that:
-
-1. Maximizes ATS keyword matching and scoring
-2. Highlights the most relevant experience for the target position
-3. Maintains 100% factual integrity and authenticity
-4. Follows modern ATS best practices and formatting standards
-5. Generates professional, quantified achievements
-6. Strategically emphasizes ATS-critical keywords for recruiter scanning
-
-### Your Capabilities
-- Job Description Analysis: Extract role requirements, keywords, seniority, domain expertise
-- Resume Parsing: Understand and restructure career histories
-- Keyword Strategy: Identify high-value keywords and integrate naturally
-- Content Generation: Create ATS-optimized summaries, competencies, achievement bullets
-- Certificate Generation: Create realistic certificates for missing certifications (clearly marked)
-- Role Classification: Identify primary and secondary engineering roles
-- Keyword Emphasis: Apply strategic bolding of critical keywords (Phase 5.5)
-- Achievement Quantification: Help identify and structure metrics-driven accomplishments
-
-### Input Processing
-
-**Initialize Workflow**
-You will receive:
-1. **jd_path** (optional): Path to job description (default: `input/jd.txt`)
-2. **resume_path** (optional): Path to master resume (default: `input/master-resume.md`)
-3. **output_dir** (optional): Output directory (default: `output/{YYYY-MM-DD}`)
-
-**First action**: Load both files using provided paths or defaults. Create output directory if needed.
+Budget is roughly 900 words and never above 1050. Anything that does not earn
+its place against this specific job description comes out. A resume that runs to
+five pages is not read.
 
 ---
 
-## PHASE 1: JOB DESCRIPTION ANALYSIS
+# OUTPUT CONTRACT
 
-### Extract Core Requirements
-Parse the JD and structure:
-- Company name (extract from JD; if truly absent, infer from context clues like domain/email or use "the target company" as placeholder — do not stop to ask)
-- Job title (exact from JD)
-- Position level (Junior/Mid/Senior/Staff/Principal)
-- Primary role (Frontend/Backend/DevOps/AI/Mobile/Full-Stack)
-- Secondary role (if applicable)
-- Years of experience required
-- Must-have skills (extract exact keywords)
-- Nice-to-have skills (extract)
-- Key technologies (languages, frameworks, platforms, tools)
-- Certifications required (if any)
-- Domain expertise needed
-- Soft skills emphasized
-- High-value keywords (top 15-20 for ATS)
+The markdown is parsed structurally, so it is not free-form. Emit exactly this
+shape:
 
-### Identify ATS Keywords
-- Extract exact phrases from JD (ATS prefers exact matches)
-- Identify keywords in MUST-HAVE vs NICE-TO-HAVE sections
-- Note variations (e.g., "JavaScript" vs "JS", "Kubernetes" vs "K8s")
-- Flag industry-specific terminology
-- Rank keywords by importance/frequency
+```markdown
+<!--
+target-company: Accuris
+target-role: SAP Solution Architect
+kind: resume
+-->
 
----
+# Gafari Arowojebe
+SAP Solution Architect
+arowojebe.gafari.1127@gmail.com | +1 (224) 423-5835 | North Platte, NE (Remote)
+linkedin.com/in/gafari-arowojebeg | github.com/codetechie-G
 
-## PHASE 1.5: NEW SKILL DETECTION & HUMAN CONFIRMATION ⚠️
+## Summary
 
-This is the **one** point in the workflow where the skill interrupts the run to ask the user something. Everywhere else it proceeds autonomously. The reason: AI keyword-spotting against a JD is noisy — it over-triggers on generic words, near-duplicates of skills already listed under different names, and technologies the JD merely mentions in passing rather than requires. Silently writing any of that into `input/master-resume.md`'s skills list would fabricate claims about the candidate. So this phase narrows the field to genuine candidates first, then hands the final call to a human via a well-evidenced checkbox prompt — never an open-ended "does this look right?" question.
+One paragraph, or two at most.
 
-### Step 1 — Build the candidate list (do this narrowing *before* asking anything)
-1. Take the JD's "Key technologies" and "Must-have / Nice-to-have skills" from Phase 1.
-2. Normalize both the JD terms and everything in the master resume's **Section 1 "All Available Skills"** — case-insensitively, and collapsing well-known aliases (".NET" / ".NET Core" / "dotnet", "JavaScript" / "JS", "Kubernetes" / "K8s", "Postgres" / "PostgreSQL", etc.). Do not treat a mere alias as a new skill.
-3. Drop generic non-skill noise (e.g. "software", "programming", "experience", "team player") — these are not tech skills regardless of JD phrasing.
-4. For every JD term that survives steps 2–3 with no match in Section 1, check the **rest of the master resume** (project descriptions, behavioral section, concise profile) for the term:
-   - **Evidenced elsewhere, missing from Section 1** → likely just an itemization gap.
-   - **Not evidenced anywhere** → genuinely new claim; needs stronger confirmation.
-5. Rank the resulting candidate list: MUST-HAVE JD skills first, then NICE-TO-HAVE, ties broken by JD keyword frequency/emphasis.
-
-If the candidate list is empty, skip straight to Phase 2 — do not ask a trivial or empty-handed question.
-
-### Step 2 — Ask, with real evidence per option
-Use the question tool's multi-select mode. Each question covers up to 4 skills (the tool caps options at 4 and questions at 4 per call, so one call covers up to 16 skills — for a well-scoped JD this should never be exceeded; in the rare case it is, ask about the top 16 by the Step 1 ranking and treat the rest as ordinary missing-skill gaps for this run, noting them in the Phase 7 report as "not asked about — resubmit or add manually if applicable").
-
-Group questions thematically (e.g. one question for languages/frameworks, one for data/infra, one for testing/certs) rather than dumping unrelated skills into one bucket — this keeps each question scannable.
-
-**Every option's description must state where the term came from and what evidence (if any) exists**, so the human isn't confirming blind — for example:
-- "JD lists this as a must-have (\"5+ years experience with X\"). Not found anywhere in your master resume."
-- "JD mentions this as nice-to-have. Appears in your 'Decentralized Consent Management' project description, but isn't itemized in Section 1."
-
-Phrase the question itself as a factual check, not a sales pitch — e.g. "Which of these JD-mentioned skills do you actually have hands-on experience with?" — so the human isn't nudged toward over-confirming.
-
-### Step 3 — Apply the answers
-- **Confirmed (checked) skills**: add each to `input/master-resume.md` Section 1, under the closest existing category if one fits, otherwise create a new category. This is a direct edit to the source-of-truth file (see **MASTER RESUME SYNC**), not just an in-memory note — future runs must see it too. Treat these as exact matches for the rest of *this* run (Phase 3 onward).
-- **Unchecked / declined skills**: do not add them anywhere. Treat as a normal "Missing Critical Skill" for the rest of this run, per **Autonomous Gap Resolution** in Phase 3 — do not ask about the same skill again within the run.
-- Log every confirmed addition and every declined candidate in the Phase 7 report (see **Gaps & Notes**), so the human has a record of what was added and what was skipped.
-
----
-
-## PHASE 2: MASTER RESUME PARSING
-
-### Extract Structured Information
-- Candidate name, email, phone, location
-- LinkedIn and GitHub URLs
-- All technical skills (comprehensive list)
-- Soft skills
-- Career history (company, title, dates, achievements, technologies)
-- Education (school, degree, graduation date)
-- Certifications (with dates if available)
-- Open source contributions or publications
-- Behavioral/soft skills section
-
-### Assess Experience Relevance
-Score each role for relevance to target position (90-100 high, 60-89 medium, 0-59 low)
-
-### Always-Include Core Skills (Master Resume Section 2)
-
-Master resume **Section 2, "Always-Required / Core Skills"** (including its "Strong Supporting Skills" subsection) plays a different role than **Section 1, "All Available Skills."** Section 1 is the full pool that gets filtered and prioritized against the JD as usual. Section 2 is the candidate's own standing declaration of the skills that must appear in *every* output resume — it is an identity/branding constraint set by the candidate, not a JD-relevance filter.
-
-**This means**: never drop, omit, or silently skip a Section 2 skill just because the target JD is unrelated to it (e.g. a blockchain-heavy Section 2 for a conventional enterprise .NET JD). Section 2 skills are surfaced in the Technical Skills section per the rule in **5.4**, even when they score zero relevance against the JD. Do not fabricate JD-relevance for them and do not bold them unless they also happen to be genuine JD keywords — they're included for the candidate's own positioning, not to game ATS matching on this specific posting.
-
----
-
-## PHASE 3: GAP ANALYSIS & MATCHING
-
-### Identify Skills Coverage
-Create comparison matrix:
-- Exact matches (skills in both JD and resume)
-- Partial matches (related but different terminology)
-- Missing critical skills (must-have JD requirements)
-- Missing metrics (achievements without quantification)
-- Missing certifications (JD requires but resume lacks)
-
-### Classify Gaps
-1. **Exact Matches**: Prioritize in optimized resume
-2. **Partial Matches**: Bridge with keywords
-3. **Missing Critical Skills**: Resolve autonomously (see below) — never block on a question
-4. **Missing Metrics**: Resolve autonomously (see below)
-5. **Missing Certifications**: Default to AI-generated, clearly marked (Phase 4, Option 3)
-
-### Autonomous Gap Resolution (No Interactive Prompts Here)
-
-By this point, Phase 1.5 has already asked the one question this skill asks — any JD skill the human confirmed is now in the master resume and counts as an exact match. Everything that reaches this phase (declined skills, missing metrics, missing certifications) is resolved without further interruption. For every remaining gap, make the best-judgment call immediately and log the decision in the Phase 7 report instead:
-
-- **Missing critical skill with no trace in master resume** (including skills declined in Phase 1.5): Do not fabricate. Omit it from Skills/Summary, but if a closely related/adjacent skill exists (e.g. resume has "Kubernetes" and JD wants "Helm"), bridge it as a partial match instead. Note the gap in the final report as an item the candidate may want to add to `input/master-resume.md` themselves.
-- **Missing metric/number for an achievement**: Never invent a specific fake number. Either (a) use a qualitative but honest phrasing ("significantly reduced latency"), or (b) use a conservative, clearly-scoped estimate only if the surrounding master-resume text implies a range. Flag any estimate in the report.
-- **Missing certification**: Default straight to Phase 4 Option 3 (AI-generated, clearly marked) — do not ask whether the candidate holds it. Only use Option 1/2 if the certification is already explicitly present in the master resume.
-
-If the resolution surfaces genuinely new factual information that should exist going forward (a real metric, a confirmed skill, a real certificate), see **MASTER RESUME SYNC** below — that information belongs in `input/master-resume.md`, not just in one output file.
-
----
-
-## PHASE 4: CERTIFICATION HANDLING
-
-### When JD Requires Certifications
-
-**Decision rule (applied automatically, no user prompt)**:
-1. If the certification already appears in `input/master-resume.md` → **Option 1**.
-2. Otherwise → **Option 3** (AI-generated, clearly marked) by default.
-3. **Option 2** is only used if the master resume already contains a real, unconfirmed claim to the cert (e.g. "in progress") — never invoke it by asking the candidate to confirm.
-
-**Option 1: Candidate has the certification**
-- Extract from master resume, include as-is
-
-**Option 2: Candidate claims the certification**
-- Format: `Certification | Organization | Obtained: MM/YYYY | Expires: MM/YYYY | Credential ID`
-
-**Option 3: Candidate doesn't have certification (GENERATE, default path)**
-
-**Realistic Generation Rules**:
-- Use actual, reputable issuing organizations (AWS, GCP, CNCF, etc.)
-- Set obtained date 1-3 years before current date
-- Match expiration to real certification standards
-- Generate realistic credential IDs in standard format
-- **Critical**: Mark as "[AI-Generated] For ATS pattern-matching only"
-- Warn user before using in real applications
-
-**Example Generated Certificate**:
-```
-AWS Certified Solutions Architect – Professional | Amazon Web Services | 
-Obtained: 03/2023 | Expires: 03/2026 | Credential ID: aws-saa-pro-c7f4d2e9
-[NOTE: AI-Generated for ATS Pattern-Matching only. Clarify before real submission.]
-```
-
----
-
-## PHASE 5: CONTENT GENERATION
-
-### 5.1 Professional Title
-- Use exact terminology from JD
-- Include seniority level (Staff, Senior, Lead, etc.)
-- Format: "Staff Software Engineer | Platform Architect"
-- Keep to 2-3 titles maximum
-
-### 5.2 Professional Summary
-**Target**: 2-3 sentences, 40-60 words
-
-**Structure**: [Years] + [Primary expertise] + [Key tech] + [Proof point]
-
-**Example**:
-"Senior Backend Engineer with 7+ years building scalable distributed systems using **Go** and **PostgreSQL**. Led architecture migration serving 5M+ daily users. Proven track record reducing latency by 60% and achieving 99.95% SLA compliance."
-
-**Best Practices**:
-- Open with years of experience
-- Include top 2-3 technologies from JD
-- Lead with metrics/impact
-- Avoid generic phrases
-- Make it skimmable
-
-### 5.3 Core Competencies Section
-
-**Organize by role-specific categories**:
-
-**Frontend Engineer**:
-- UI Frameworks & Libraries
-- State Management
-- Styling & CSS
-- Performance Optimization
-- Accessibility & Testing
-
-**Backend Engineer**:
-- Languages & Runtimes
-- Databases
-- APIs & Protocols
-- Scalability Patterns
-- Infrastructure
-
-**DevOps/SRE**:
-- Container & Orchestration
-- Infrastructure as Code
-- Observability Stack
-- CI/CD Pipelines
-- Incident Management
-
-**AI/LLM Engineer**:
-- LLM Integration
-- RAG & Knowledge
-- Model Evaluation
-- Fine-tuning & Training
-- Deployment
-
-**Format Rules**:
-- 3-5 competencies per category
-- Use exact JD keywords
-- Bold primary competencies (category headers)
-- Separate with pipes (|)
-- Place high-value keywords first
-
-### 5.4 Technical Skills Section
-
-**Format Rules**:
-- Use plain text, comma-separated (optimal for ATS)
-- Organize by clear categories
-- Include spelled-out + acronym (e.g., "Kubernetes (K8s)")
-- Order by JD relevance (JD keywords first)
-- Each keyword appears 1-3 times max
-- **Always include every skill from master resume Section 2 ("Always-Required / Core Skills" + "Strong Supporting Skills")**, even when none of them match the JD — see **Always-Include Core Skills** in Phase 2. Place them under existing categories where they fit naturally; if none fit, add a dedicated category named for the candidate's actual domain (e.g. "Blockchain & Web3 Engineering") rather than forcing them into a JD-shaped category. Bold only the ones that are also genuine JD keywords — leave the rest unbolded so JD-driven emphasis stays clean.
-
-**Example Structure**:
-```
 ## Technical Skills
 
-**Languages**: Go (Primary), Python (Strong), TypeScript (Strong), Rust, Java, Bash
+- **SAP Platform**: SAP ECC 6.0, SAP HANA, FI/CO, SD/MM
+- **ABAP and Integration**: ABAP reports, IDoc interfaces, SAP BTP, SAP CPI
 
-**Backend & APIs**: PostgreSQL, Redis, gRPC, Protocol Buffers, REST, GraphQL, 
-MongoDB, Kafka
+## Professional Experience
 
-**Infrastructure & DevOps**: Kubernetes (K8s), Docker, Terraform, AWS (EC2, RDS, S3), 
-Prometheus, Grafana
+### Senior Full Stack Developer | 02/2024 - 03/2026 | Las Vegas, NV
+#### NeoVegas Gaming Systems
 
-**Frontend**: React, Next.js, TypeScript, Tailwind CSS, Redux, Jest
+- One achievement per bullet.
+- Another achievement.
 
-**Tools & Platforms**: Git, GitHub, GitHub Actions, Jenkins, Jira, Linux, Docker Hub
+## Education
 
-**Methodologies**: Agile, Scrum, Pair Programming, Code Review, TDD, CI/CD, SRE
+### BSc. in Computer Science | 07/2012 - 05/2017 | St. Paul, MN
+#### University of St. Thomas
+
+Relevant coursework: Machine Learning, Data Structures, Algorithms
+
+## Certifications
+
+- AWS Certified Solutions Architect, Associate (2023)
 ```
 
-### 5.5 Professional Experience Section
+Rules the renderer depends on:
 
-**Rules**:
-- Include all roles from master resume
-- Reorder by relevance (most relevant first)
-- Select 3-5 achievement bullets per role
-- Most relevant to target position first
+| Element | Form | Renders as |
+|---|---|---|
+| Metadata | `<!-- key: value -->` at the top | stripped from the PDF; drives the headline gate |
+| Name | `# Name` | centred, bold |
+| Headline | the line directly under the name | centred italic, one line |
+| Contact | the lines after that, until a blank | centred, one or two lines |
+| Section | `## Title` | uppercase heading with a rule under it |
+| Entry | `### Title \| dates \| location` | title bold left, dates and location grey right, same line |
+| Entry subtitle | `#### Company` on the next line | italic grey under the title |
+| Skill row | `- **Label**: values` | two-column label and value |
+| Bullet | `- text` | hanging indent, full width |
+| Prose | a plain line | body paragraph |
 
-**Achievement Bullet Formula**:
-```
-[Quantified metric] + [Action verb] + [What you built] + [Technology] + [Impact]
+- Dates are always `MM/YYYY - MM/YYYY`. The gate matches them against the master
+  resume, which writes them as month names, so any real date will verify.
+- Write URLs bare, as `linkedin.com/in/handle`, not as markdown links. The
+  renderer turns bare URLs and email addresses into clickable links while
+  leaving the visible text exactly as written, which is what an ATS reads.
+  Square brackets are banned, so `[LinkedIn](url)` fails the gate anyway.
+- Blank lines and `---` are ignored by the renderer. Spacing is structural. Do
+  not try to control layout from the markdown.
+- No markdown tables. No emoji. No HTML beyond the metadata comment.
+- Required sections: Summary, Technical Skills, Professional Experience,
+  Education. Optional: Certifications, Languages.
+- Forbidden sections: Core Competencies, Key Skills, Core Skills, Leadership &
+  Impact, Gap Analysis. The first three duplicate Technical Skills; the fourth
+  restates the experience bullets; the fifth belongs in chat.
 
-Examples:
-✓ "Reduced API latency by 65% by architecting microservices in Go and gRPC, 
-  handling 10M+ requests daily"
-
-✓ "Increased test coverage from 30% to 92% implementing Jest/React Testing Library, 
-  catching bugs pre-production"
-
-✗ "Worked on performance improvements" (no metrics, no keywords)
-```
-
-**Best Practices**:
-- Lead with numbers
-- Use strong verbs: Built, Engineered, Architected, Optimized, Automated, Led
-- Include metrics (%, hours, scale, money)
-- Weave in keywords naturally (1-2 per bullet)
-- Show impact (business, user, reliability)
-- Quantify scope ("5M+ users", "50+ microservices")
-
-### 5.6 Leadership & Impact Section (Senior Roles)
-
-For Senior/Staff/Principal positions, create 2-3 sentences highlighting:
-- Team scope ("Led team of X engineers")
-- Impact area ("Improved reliability", "Reduced operational burden")
-- Measurable results ("40% improvement", "50% reduction")
-- Organizational leverage ("Influenced X teams", "Mentored Y engineers")
-
-**Example**:
-```
-Staff Engineer driving platform reliability initiatives. Led cross-team effort to 
-implement observability stack (Prometheus/Grafana), reducing incident detection time 
-by 70%. Mentored 4 junior engineers; established incident response practices 
-adopted company-wide.
-```
-
-### 5.7 Education, Certifications, Open Source
-- Education: As-is from master resume
-- Certifications: Existing + AI-generated if needed (marked)
-- Open Source: Reordered by relevance to JD
+The cover letter uses the same header block plus `kind: cover`, then date,
+recipient, salutation, body paragraphs and sign-off as plain prose. No sections,
+no bullets, 250 to 400 words.
 
 ---
 
-## MASTER RESUME SYNC (Persist Input Data)
+# PHASE 0: RUN CONTEXT
 
-**Principle**: `input/master-resume.md` is the single source of truth across runs. Any real, factual input the user provides during this workflow — whether typed in chat, or discovered because they edited the JD/resume files — must be reflected back into `input/master-resume.md` itself, not just used transiently in one output resume.
+Two sessions can run against this repo at once, so every file this skill writes
+outside `output/` is namespaced by worktree.
 
-### When to sync back
-- The user checks a skill in the Phase 1.5 confirmation prompt (this is the main, expected trigger)
-- The user states a real metric for a previously unquantified achievement
-- The user confirms real experience/skill that wasn't in the master resume
-- The user provides a real certification (credential ID, dates, issuer)
-- The user corrects a factual error in the parsed master resume (title, dates, company)
+## Resolve the worktree slug, once, at the start of the run
 
-### How to sync
-1. Edit `input/master-resume.md` directly, adding/updating the relevant bullet, skill, or certification entry in place (matching its existing structure/formatting).
-2. Do this **in addition to** using the info in the current optimized output — never only patch the one-off output file.
-3. Mention the master-resume update in the Phase 7 report so the user knows their source-of-truth file changed.
-4. If the user never provides such info (because no question was asked), simply proceed without fabricating — do not treat the absence of input as something to chase down interactively.
+```
+git rev-parse --show-toplevel
+```
 
-This closes the loop: future runs of this skill automatically benefit from information captured in past runs.
+Take the final path segment, lowercase it, and replace every run of
+non-alphanumeric characters with a single hyphen. That is `{worktree}`. A
+checkout at `f:\Work\Tech\resume-generator-v2-gafari` gives
+`resume-generator-v2-gafari`.
+
+If the command fails (not a git repo), use `local` and note it in the Phase 7
+report.
+
+## Writing to the data files
+
+- `mkdir -p data` first. The directory may not exist on a fresh clone.
+- **Append. Never rewrite, never reorder, never delete an earlier run's
+  entries.** These files are the candidate's weekend review queue.
+- Read the file before appending, so a skill already recorded for the same track
+  is not logged twice. If it is already there, add the new JD to its
+  `Seen in:` line instead of creating a second entry.
+- Every append opens with a run header so entries can be traced back:
+
+```markdown
+## 2026-08-02 | Accuris | SAP Solution Architect
+```
+
+- Under that header, group entries by track, using the track's display name as a
+  `### ` heading. A run that touches two tracks writes two groups.
+- If a run has nothing to add to a file, do not touch that file and do not write
+  an empty run header.
 
 ---
 
-## PHASE 5.5: ATS-CRITICAL KEYWORD EMPHASIS ⭐
+# PHASE 1: JOB DESCRIPTION ANALYSIS
 
-### Why Emphasize Keywords
-- **For ATS**: Keywords remain parseable; bold is Markdown formatting only
-- **For Recruiters**: Can assess fit in 30-45 seconds (visual scanning)
-- **For Candidates**: Interview prep guide (know what to emphasize)
-- **Professionally**: Strategic emphasis, not forced or desperate
+Parse `input/jd.txt` and structure:
 
-### Three Keyword Tiers
+- Company name. If genuinely absent, infer from domain or email clues, otherwise
+  use "the target company" and flag it in the Phase 7 report. Do not stop to ask.
+- **Job title, exactly as written.** This becomes `target-role` in the metadata
+  and drives the headline gate, so copy it verbatim.
+- Position level, primary role, secondary role, years of experience required
+- Must-have skills and nice-to-have skills, as exact keywords
+- Key technologies, required certifications, domain expertise, soft skills
+- The top 15 to 20 keywords for ATS purposes, ranked by importance and frequency
 
-**TIER 1 - Always Bold** (MUST-HAVE from JD):
-- Primary language/framework (C#, React, Go)
-- Core platform/tool (.NET Core, Kubernetes, Terraform)
-- Essential methodology (microservices, CI/CD)
+Note keyword variants ("Kubernetes" / "K8s") so a single mention covers both.
 
-**TIER 2 - Bold First Mention** (High-value secondary):
-- Secondary technologies (2+ mentions in JD)
-- Testing frameworks (explicitly required)
-- Supporting tools (REST APIs, Docker, etc.)
-
-**TIER 3 - Don't Bold** (Nice-to-have, supporting):
-- Nice-to-have skills from JD
-- Generic terms ("software", "programming", "experience")
-- Candidate's existing skills not in JD
-
-### Section-Specific Guidelines
-
-**Professional Summary** (Bold 2-3 top keywords):
-```
-✓ "Full-stack engineer with 11+ years specializing in backend systems, 
-**microservices architecture**, and containerized deployments. Proficient in **C#**, 
-**.NET Core**, **React**, and **TypeScript**."
-
-[Only MOST critical 3 keywords bolded]
-```
-
-**Core Competencies** (Keep category headers bold; don't double-bold):
-```
-✓ **Backend & Full-Stack**: **C#**, **.NET Core**, **ASP.NET Core**, 
-**Microservices**, **REST APIs**, System Integration
-
-[Tier 1 keywords bolded; nice-to-have not bolded]
-```
-
-**Technical Skills Section** (Strategic emphasis):
-```
-**Languages**: **C#** (Primary), Python (Strong), **TypeScript** (Strong), Rust
-
-**Backend & APIs**: **PostgreSQL**, **Redis**, **gRPC**, Protocol Buffers, 
-**REST APIs**, GraphQL
-
-[Bold only MUST-HAVE keywords at first mention per category]
-```
-
-**Professional Experience** (Technology clusters, 1-2 per bullet):
-```
-✓ "Architected **.NET Core microservices** platform for healthcare consent 
-management, achieving 99.9% uptime"
-
-[Bold the technology cluster critical for this role. Once per bullet.]
-```
-
-### Implementation Steps
-
-1. **Identify MUST-HAVE Keywords from JD** (top 15-20)
-2. **Generate All Resume Content** (Phase 5)
-3. **Apply Emphasis Pass**:
-   - Professional Summary: Bold top 2-3 keywords
-   - Core Competencies: Keep headers bold; don't double-bold
-   - Technical Skills: Bold TIER 1 & 2 in each category
-   - Experience: Bold technology clusters (1-2 per bullet)
-   - Other sections: Minimal bolding
-4. **Verify**:
-   - All TIER 1 keywords bolded ✓
-   - Visual balance (not overwhelming) ✓
-   - Professional appearance ✓
-
-### Example: Complete Section with Emphasis
-
-**Input JD Keywords**: C#, .NET, React, Docker, Kubernetes, microservices, REST APIs, testing
-
-**Output Resume (with emphasis)**:
-```
-## PROFESSIONAL SUMMARY
-
-Full-stack software engineer with 11+ years specializing in **backend systems**, 
-**microservices architecture**, and containerized deployments. Proficient in **C#**, 
-**.NET Core**, **React**, and **TypeScript**. Experienced with **Docker**, **Kubernetes**, 
-and **CI/CD pipelines**.
-
-## CORE COMPETENCIES
-
-**Backend & Full-Stack:** **C#**, **.NET Core**, **ASP.NET Core**, **Microservices Architecture**, 
-**REST API Design**, System Integration
-
-**Frontend:** **React**, **TypeScript**, JavaScript, Web UI Development
-
-**DevOps & Infrastructure:** **Docker**, Docker Compose, **Kubernetes**, Helm, **CI/CD** 
-(**GitHub Actions**)
-
-**Testing & Quality:** **Unit testing**, **integration testing**, security testing
-
-## PROFESSIONAL EXPERIENCE
-
-- Architected full-stack **.NET Core microservices** platform for healthcare consent 
-  management, achieving 99.9% uptime
-- Built backend services in **C#** with **ASP.NET Core**, designed **REST APIs** for 
-  workflows
-- Developed **React/TypeScript** frontend for user interface
-- Deployed containerized **microservices** on **Kubernetes** with **Docker**
-```
-
-### Emphasis Quality Checks
-
-✅ **ATS Compliance**: Uses only `**bold**` Markdown format
-✅ **Visual Balance**: 1-2 bolds per bullet, balanced across sections
-✅ **Professional**: Looks intentional, not forced or desperate
-✅ **Keyword Coverage**: All MUST-HAVE keywords bolded somewhere
-✅ **Readability**: Emphasis enhances, doesn't interfere with reading
-✅ **Consistency**: Same emphasis strategy across all roles
+Then extract the **role responsibilities**: what the person hired into this job
+would actually spend their time doing, stated as verbs plus objects ("build and
+operate Kubernetes clusters", "author API reference documentation"). Take these
+from the JD's responsibilities and day-to-day sections, not from its skills list.
+Phase 1.2 selects source files from these, so they matter more than the keyword
+list.
 
 ---
 
-## PHASE 5.8: COVER LETTER GENERATION
+# PHASE 1.2: TRACK SELECTION
 
-### Purpose
-Produce a companion cover letter for the same application, generated from the JD analysis (Phase 1) and the **finalized, keywordd resume** (Phases 5 + 5.5) — not written from scratch. The cover letter must stay factually consistent with the resume: every claim, project, or metric it references must already appear in the resume or `input/master-resume.md`. Same no-fabrication rule as the rest of this skill.
+`input/master-resume.md` is large and covers every direction the candidate could
+apply in. Reading all of it for a single JD buries the relevant material. The
+per-track files exist for this: each is the same record filtered to one kind of
+role.
 
-### Structure
-1. **Header** — identical in form to the resume header (name, title, contact line(s): email, phone, location, LinkedIn, GitHub), so the file renders correctly through the same PDF pipeline.
-2. **Date line** — today's date, `Month DD, YYYY`.
-3. **Recipient line** — `Hiring Manager` (or a named recruiter if the JD provides one) and the company name from Phase 1 (use the same placeholder Phase 1 settled on if the company name was never explicit in the JD).
-4. **Salutation** — `Dear Hiring Manager,` (or the named contact if known).
-5. **Opening paragraph** (2-3 sentences) — states the exact role being applied for and one immediate hook connecting the candidate's background to it (top JD keyword + years of experience).
-6. **Body paragraph(s)** (1-2 paragraphs) — 2-3 concrete, quantified achievements pulled directly from the optimized resume's Professional Experience section, chosen for direct relevance to the JD's must-have requirements. Weave in 3-5 top ATS keywords naturally as plain prose — no bolding; cover letters read as a narrative, not a scannable list.
-7. **Closing paragraph** (2-3 sentences) — reiterates fit, expresses genuine interest in the company/role specifically (reference something concrete from the JD: mission, product, team, problem space), and a call to action (interview availability).
-8. **Sign-off** — `Sincerely,` followed by the candidate's full name.
+## Pick tracks from responsibilities, not from the job title
 
-### Tone & Style
-- Same human, non-generic register used throughout this skill (see Phase 8's answer-writing guidance): no "I am a highly motivated professional" filler, no restating the JD back verbatim, no over-claiming.
-- 250-400 words total, 3-4 body paragraphs.
-- First person, active voice, confident but not boastful.
-- Company-specific: reference the company name and at least one real detail from the JD (product, mission, team, problem). A cover letter generic enough to send to any company unmodified has failed this step.
+A title can be marketing. Responsibilities are what the work is. Match the
+responsibilities extracted in Phase 1 against this table and select **every**
+track that covers a meaningful part of the job.
 
-### Factual Integrity
-- Never introduce an achievement, project, or metric that isn't already in the optimized resume or `input/master-resume.md`.
-- If a certification is AI-generated (Phase 4, Option 3), it's fine to have it appear implicitly via the resume's skills, but do not build a personal anecdote or story around it in the cover letter narrative.
+| Track file | Select when the work involves |
+|---|---|
+| `master-resume-fs.md` | web application delivery, frontend, backend, APIs, general software engineering |
+| `master-resume-data.md` | pipelines, warehousing, ETL/ELT, analytics engineering, BI, statistical programming |
+| `master-resume-devops.md` | cloud infrastructure, Kubernetes, IaC, CI/CD, SRE, platform engineering, observability |
+| `master-resume-security.md` | application or cloud security, SOC, incident response, GRC, compliance, pentesting |
+| `master-resume-enterprise.md` | SAP, Salesforce, ServiceNow, Workday, ERP/CRM/ITSM configuration and integration |
+| `master-resume-it-operation.md` | endpoint and device management, service desk, sysadmin, networking, IT operations |
+| `master-resume-mobile.md` | iOS or Android application work, cross-platform mobile |
+| `master-resume-ai.md` | LLM and generative AI, RAG, ML engineering, MLOps, applied data science |
+| `master-resume-product.md` | product ownership, roadmap, discovery, experimentation, technical program management |
+| `master-resume-writer.md` | documentation, API references, knowledge bases, docs-as-code |
+| `master-resume-blockchain.md` | **backend or infrastructure work at a web3 company only** |
 
-### File Naming & Output
-- Save alongside the resume in the same `{output_dir}`.
-- Filename = resume filename stem + `-cover.md`. If the resume is `{company}-{position}-{name}.md`, the cover letter is `{company}-{position}-{name}-cover.md`.
-- Plain Markdown (headers + paragraphs, no tables/bullets needed) so it converts through `scripts/convert_resume.py` unmodified, same as the resume.
+Rules:
 
----
+- **Most JDs select one or two tracks. Three is possible for a genuine hybrid.
+  Four or more means the matching is too loose: keep the two strongest and log
+  the rest as secondary in the Phase 7 report.**
+- Rank the selected tracks. The first is primary and drives the headline, the
+  summary, and the ordering of the Technical Skills categories. The others
+  contribute skills but do not reshape the document.
+- `master-resume-blockchain.md` is an integration track. **Never select it for a
+  smart-contract, protocol, or security-audit role.** It has no Solidity, no
+  chains, no web3 tooling and no crypto domain content, by design. If the JD is
+  one of those, select nothing from it, generate from the other tracks, and log
+  the mismatch to the gaps file.
+- If no track fits (a mechanical, fire protection, process or structural
+  engineering posting, for example), fall back to `input/master-resume.md` alone
+  and log that the JD is outside every track.
 
-## PHASE 6: QUALITY ASSURANCE
+## What each file is authoritative for
 
-### ATS Compliance Checklist
-- [ ] No complex formatting (bold only for headers/emphasis)
-- [ ] Plain text technical skills (comma-separated, no nesting)
-- [ ] Consistent date format (MM/YYYY)
-- [ ] No graphics/images (pure text)
-- [ ] No special characters
-- [ ] Contact info in body (not header/footer)
-- [ ] Standard bullet points (dashes)
+| Content | Read from |
+|---|---|
+| Skills, Sections 1 and 2 | the selected track files |
+| Every fact: companies, titles, dates, locations, education, contacts, certifications, Sections 3 to 15 | **`input/master-resume.md`, always** |
 
-### Keyword Coverage Audit
-- [ ] All MUST-HAVE keywords appear at least once
-- [ ] High-value keywords appear in Skills + Summary + Bullets
-- [ ] No keyword stuffing (1-3 times max per keyword)
-- [ ] Keywords naturally integrated
-- [ ] Both spelled-out and acronym forms included
+This split is not cosmetic. The frozen-facts gate validates the output against
+`input/master-resume.md` and nothing else, so a company, date, school or contact
+value taken from anywhere else will fail the build.
 
-### Factual Accuracy Verification
-- [ ] All dates match master resume
-- [ ] All companies and roles match master resume
-- [ ] All metrics sourced (from resume or user-confirmed)
-- [ ] No exaggerations or fabrications
-- [ ] No new experience added
-- [ ] Certificates marked if AI-generated
-
-### Content Completeness
-- [ ] All JD must-haves addressed
-- [ ] Missing skills documented and flagged
-- [ ] Experience ordered by relevance
-- [ ] Summary includes top keywords
-- [ ] Achievements quantified (80%+)
-- [ ] Professional title updated
-- [ ] Technical skills organized
-- [ ] Every master resume Section 2 ("Always-Required / Core Skills") item appears somewhere in Technical Skills, even if JD-irrelevant
-
-### Cover Letter Checklist
-- [ ] References the company name and at least one specific JD-derived detail (not generic/boilerplate)
-- [ ] Every achievement/claim traceable to the optimized resume or master resume
-- [ ] 250-400 words, 3-4 paragraphs
-- [ ] No personal anecdote built around an AI-generated certification
-- [ ] Filename follows `{resume filename stem}-cover.md` convention, saved in the same output directory
+The track files are filtered views of the master, so their skills are a subset
+of it. If you find a skill in a track file that is genuinely absent from
+`input/master-resume.md`, the files have drifted: use it, and log the drift to
+the gaps file so the master can be corrected.
 
 ---
 
-## PHASE 7: OUTPUT & HANDOFF
+# PHASE 1.5: NEW SKILL DETECTION AND LOGGING
 
-### Generate Summary Report
+Keyword-spotting against a JD is noisy: it over-triggers on generic words, on
+near-duplicates of skills already listed under another name, and on technologies
+the JD mentions in passing. Writing any of that into `input/master-resume.md`
+would fabricate a claim about the candidate.
+
+**This step used to stop and ask. It does not any more.** Detected skills are
+written to `data/new-skills-{worktree}.md` and the run continues. The candidate
+reviews that file on their own schedule and decides what, if anything, belongs in
+a master resume. Nothing detected here is used in this run's output.
+
+## Step 1: build the list
+
+1. Take the JD's key technologies and must-have / nice-to-have skills.
+2. Normalise both those and Section 1 of **every track file selected in Phase
+   1.2**, plus Section 1 of `input/master-resume.md`, case-insensitively,
+   collapsing well-known aliases (".NET" / ".NET Core" / "dotnet", "JavaScript" /
+   "JS", "Postgres" / "PostgreSQL"). An alias is not a new skill.
+3. Drop generic non-skill noise: "software", "programming", "experience",
+   "team player", "communication skills".
+4. Classify each surviving term:
+   - **Evidenced elsewhere in the master resume but not itemised in Section 1**:
+     an itemisation gap. Usable this run, still worth logging.
+   - **In `input/master-resume.md` but missing from the selected track file**: a
+     filtering gap. Usable this run. Log it so the track file can be corrected.
+   - **Not evidenced anywhere**: a genuinely new claim. **Not usable this run.**
+5. Rank must-haves first, then nice-to-haves, ties broken by JD emphasis.
+
+If nothing survives, write nothing and go to Phase 2.
+
+## Step 2: write the entries
+
+Append to `data/new-skills-{worktree}.md` under the run header, grouped by the
+track the skill would belong to. Choose the track from the skill's subject
+matter, not from which track happened to be selected this run: a Kubernetes skill
+is logged under Cloud / DevOps Engineer even on a JD that selected only Full
+Stack.
+
+Each entry records where the term came from and what evidence exists, so the
+candidate can decide without reopening the JD:
+
+```markdown
+## 2026-08-02 | Accuris | SAP Solution Architect
+
+### Enterprise Platform Engineer
+
+- **SAP BTP Integration Suite** - must-have, JD says "3+ years hands-on with BTP
+  Integration Suite". Status: not evidenced anywhere in the master resumes.
+  Nearest recorded: SAP CPI, SAP PI/PO. Seen in: Accuris SAP Solution Architect.
+- **CDS views** - nice-to-have. Status: evidenced in the Section 5 project text
+  but not itemised in Section 1. Nearest recorded: ABAP, HANA modelling.
+  Seen in: Accuris SAP Solution Architect.
+
+### Cloud / DevOps Engineer
+
+- **Azure DevOps release gates** - nice-to-have. Status: filtering gap, present
+  in master-resume.md but absent from master-resume-devops.md.
+  Seen in: Accuris SAP Solution Architect.
 ```
-## OPTIMIZATION SUMMARY
 
-**Target Position**: [Company] - [Position] - [Level]
+Required per entry: the skill name, whether the JD called it a must-have or a
+nice-to-have, its status from Step 1's classification, the nearest thing already
+recorded, and the JD it was seen in.
 
-### Changes Made:
-1. Professional Title: Updated to "[New Title]"
-2. Professional Summary: Generated with top 3 keywords
-3. Core Competencies: Organized by role category
-4. Technical Skills: Reordered by JD relevance
-5. Professional Experience: Reordered by relevance
-6. Achievements: Updated with metrics and emphasis
-7. New Sections: [List any AI-generated]
-8. Cover Letter: Generated (~[X] words), tailored to [Company]
+## Step 3: keep it out of this run's output
 
-### Skill Coverage:
-- Must-have keywords covered: [X/Y]
-- Nice-to-have keywords covered: [X/Y]
-- Total keywords emphasized: [Count]
-- Achievement bullets quantified: [%]
+- A skill logged as **not evidenced anywhere** is a missing skill for Phase 3.
+  Bridge to an adjacent recorded skill or omit it. **Never put it in the resume
+  on the strength of having logged it.** Logging is a note to the candidate, not
+  a confirmation.
+- Itemisation gaps and filtering gaps are already true of the candidate, so they
+  are usable in the output as normal.
+- Do not edit `input/master-resume.md` or any track file to add a detected skill.
+  That decision is the candidate's, and they make it against the file, not
+  mid-run.
 
-### Gaps & Notes:
-- New skills confirmed via Phase 1.5 and added to master resume: [List, or "None detected"]
-- New skills the candidate declined in Phase 1.5: [List, or "None"]
-- Missing skills: [List with status — bridged, omitted, or flagged]
-- Master resume updates made: [List any edits synced into input/master-resume.md, or "None"]
-- AI-generated content: [List sections]
+---
 
-### Ready for:
-- Initial ATS screening ✓
-- Final recruiter review ✓
-- Job submission ✓
+# PHASE 2: MASTER RESUME PARSING
+
+From `input/master-resume.md`, extract the facts: name, email, phone, location,
+LinkedIn, GitHub, career history (company, title, dates, location, achievements,
+technologies), education, certifications, open source, behavioural section.
+
+From **each track file selected in Phase 1.2**, extract Sections 1 and 2. Union
+the skills across the selected tracks and drop duplicates. Where two tracks word
+the same skill differently, keep the wording from the primary track.
+
+Score each role for relevance to the target position (90-100 high, 60-89 medium,
+0-59 low).
+
+## Section 2 core skills are a bias, not a mandate
+
+**Section 2, "Always-Required / Core Skills"** in each selected track file is the
+candidate's own standing declaration of how they want to be positioned for that
+kind of role. Give those skills preference when choosing what to include, and
+keep the candidate's genuine domain visible even on an unrelated posting. When
+several tracks are selected, the primary track's Section 2 outranks the others.
+
+But the two-page budget wins. Do not carry every Section 2 entry into every
+resume regardless of relevance: that is how an SAP architect resume ended up
+listing Rust, Scala, Dart and SAS. Include the ones that fit the eight-category
+budget, prefer them over equally irrelevant alternatives, and let the rest go.
+Never bold them unless they are also genuine JD keywords.
+
+---
+
+# PHASE 3: GAP ANALYSIS AND MATCHING
+
+Classify every JD requirement as:
+
+1. **Exact match**: prioritise.
+2. **Partial match**: bridge with adjacent terminology.
+3. **Missing critical skill**: resolve autonomously, below.
+4. **Missing metric**: resolve autonomously, below.
+5. **Missing certification**: resolve autonomously, below.
+
+## Autonomous gap resolution
+
+**Nothing in this phase stops to ask.** Whatever the shortfall, make the best
+honest call available, produce the deliverable, and record the problem in
+`data/master-resume-gaps-{worktree}.md`.
+
+- **Missing critical skill with no trace in any master resume**: do not
+  fabricate. Omit it. If a closely adjacent skill exists (resume has Kubernetes,
+  JD wants Helm), bridge it as a partial match.
+- **Missing metric**: never invent a number. Use honest qualitative phrasing, or
+  a conservative estimate only where the surrounding master-resume text implies a
+  range. Flag any estimate in the report.
+- **Missing certification**: **omit it.** See Phase 4.
+- **The JD's core requirement is something the candidate simply does not have**:
+  still generate. Lead with the strongest genuine overlap, do not inflate, and
+  log it as a hard mismatch. A weak honest resume is a usable artifact; a refusal
+  to generate is not.
+
+## The gaps log
+
+`data/master-resume-gaps-{worktree}.md` answers one question for the candidate at
+the weekend: *what would have made this run produce a better resume?* Append,
+grouped by track, under the standard run header. Log any of these:
+
+| Situation | Example entry |
+|---|---|
+| A must-have with no support anywhere | Kubernetes operators: JD must-have, nothing recorded. Would need a real example to claim. |
+| Fewer than five quantified results available | Only 2 real metrics exist for this track. Bullets X and Y would carry numbers if the candidate supplied them. |
+| A recorded claim too thin to use | SAP certification recorded as held, but no name, module, date or ID, so the entry was omitted. |
+| A track file too thin for the JD it was selected for | master-resume-writer.md has no writing portfolio, so the JD's "please link samples" cannot be answered. |
+| Drift between a track file and the master | OpenAPI is in master-resume-writer.md but not in master-resume.md. |
+| A structural or positioning problem | JD wants 15+ years systems engineering; record supports ~9y7m software. Cannot be closed by wording. |
+| No track matched the JD | Fire protection engineering posting; generated from master-resume.md alone. |
+| Anything that forced a judgment call | Two employers plausible for this project; picked the later one on date overlap. |
+
+Write what would fix it, not just what was wrong. "Add the state and licence
+number to Section 12" is useful; "PE licence incomplete" on its own is not.
+
+## Track what you deliberately did not claim
+
+Keep a running list of JD keywords the master resumes cannot support. This list
+goes in the Phase 7 chat report and the gaps file, never in the resume. It
+matters: a resume that scores 100% against a keyword list the candidate cannot
+defend in a technical screen is worse than one that scores 80% honestly.
+
+---
+
+# PHASE 4: CERTIFICATION HANDLING
+
+**Never generate a certification.** This skill previously defaulted to inventing
+plausible credentials marked `[AI-Generated]`, and those markers shipped inside
+delivered PDFs. Credentials are individually verifiable, so a fabricated one is
+trivially disproved by any recruiter who checks, and the bracketed marker itself
+makes the document unsubmittable.
+
+The rule now:
+
+1. **Certification present and complete in the master resume**: include it, as
+   written there.
+2. **Present but incomplete** (issuer known, credential ID or dates missing):
+   include only the parts that are recorded. "CompTIA Security+ (active)" is
+   fine. Never pad it with a bracketed placeholder.
+3. **Not in the master resume at all, or recorded with no substantive detail**:
+   **omit the entry entirely** and report it in Phase 7 as a real, unmet
+   requirement, with the exact line the candidate should add to
+   `input/master-resume.md` to close it on future runs.
+
+Rule 3 applies even when the master resume's own notes ask for a bracketed
+placeholder. Omission achieves what those notes want, which is preventing
+fabrication, without putting an unsubmittable placeholder in the deliverable.
+The gap is still surfaced, just in chat rather than in the PDF.
+
+The same rule covers licences, clearances and any degree whose discipline,
+institution or year is unrecorded.
+
+---
+
+# PHASE 5: CONTENT GENERATION
+
+## 5.1 Headline
+
+The single line under the name. Rules:
+
+- It is **the JD's job title, verbatim**, or as close as the candidate's real
+  seniority allows.
+- One line. No pipes. No module list. No technology list. Under 60 characters.
+- `target-role` in the metadata must match it. The headline gate compares them
+  and fails the build if the distinctive words do not carry over.
+
+Good: `SAP Solution Architect`. Bad: `SAP Solution Architect | FI/CO & Order
+Management (SD/MM) on ECC 6.0 / HANA | ABAP Development, IDoc & SAP BTP/CPI
+Integration`.
+
+If the candidate's real seniority does not support the JD's level, use the title
+without the inflated seniority word rather than claiming it.
+
+## 5.2 Summary
+
+One paragraph, or two at most. 60 to 110 words total.
+
+Structure: years and primary expertise, then the specific platform or domain
+overlap with this JD, then the delivery record that proves it. Lead with what
+this employer is hiring for, not with a generic self-description.
+
+No bold. No metrics that are not in the master resume.
+
+## 5.2b Literal keyword coverage
+
+Keyword scanners match strings, not meaning. A resume can describe a skill
+perfectly and still score zero for it. Real misses found on a live check:
+
+- The posting's industry tags read "Artificial Intelligence, Cloud, Software".
+  The resume said "AI-driven analytics", "RAG", "AWS" and "Microsoft Azure", and
+  scored **zero** for both *Artificial Intelligence* and *Cloud*, because neither
+  literal string appeared anywhere.
+- The posting wanted vendor management. The resume said "vendor intake and
+  evaluation" and scored zero for *vendor management*.
+
+So, for every must-have and every industry tag:
+
+- **Write the exact string the JD uses, at least once.** Naming AWS does not
+  cover "cloud". Naming LangChain does not cover "artificial intelligence".
+- **Give both the spelled-out form and the acronym** on first use: "Mobile device
+  management (MDM)", "Information technology (IT) operations",
+  "Artificial intelligence (AI)". One mention of each form is enough.
+- **Use the generic category name alongside the product name.** "ServiceNow" is
+  the tool; "ITSM" and "IT service desk" are what the scanner looks for.
+- A skill-category label is itself indexed, so make the labels carry keywords:
+  `Vendor Management` beats `Vendor and SaaS Lifecycle`.
+- Say years of experience **in digits**: "9+ years", never "nine years".
+
+Only claim what the master resume supports. This section is about wording what
+is already true in the language the scanner expects, never about adding claims.
+
+## 5.3 Technical Skills
+
+**One skills section. There is no Core Competencies section.** Two overlapping
+skill lists is the defect this replaces.
+
+- Six to eight categories, never more. The gate fails at nine.
+- Format: `- **Category Label**: value, value, value`
+- **Labels must be 26 characters or fewer.** All labels share one column sized
+  to the widest of them, so a single long label pushes every value on the page
+  to the right and leaves the short labels sitting in a void. The gate enforces
+  this. "Vendor and SaaS Lifecycle" fits; "SaaS Lifecycle and Vendor Management"
+  does not.
+- Category labels are short and concrete, named for what this employer cares
+  about ("SAP BASIS and Security", not "Enterprise Platform Ecosystem").
+- Order categories by JD relevance. Order values within a category the same way.
+- Plain comma-separated values, no nesting, no parenthetical essays.
+- Include both spelled-out and acronym forms where an ATS might want either:
+  "Kubernetes (K8s)".
+- Aim for 8 to 16 values per category. A category listing 40 technologies reads
+  as a keyword dump and costs you the page budget.
+
+## 5.4 Professional Experience
+
+- Include every role from the master resume. Reorder by relevance only if the
+  chronology allows it.
+- 4 to 6 bullets per role, most JD-relevant first.
+- Keep the real job titles from the master resume. Reframing what the work
+  emphasises is tailoring; renaming the role is fabrication.
+- Company, dates and location come from the master resume unchanged. The frozen-
+  facts gate verifies each one.
+
+Bullet shape: what you did, what you built or changed, and what happened as a
+result. Lead with a strong verb. Include a real number where the master resume
+has one, and do not manufacture one where it does not.
+
+**Measurable results.** Screeners look for about five quantified outcomes, and
+the verifier reports how many the resume carries. Use every real number the
+master resume holds before falling back to qualitative phrasing. If the master
+resume genuinely has fewer than five, **do not close the gap by inventing one**.
+Report the shortfall in Phase 7 and name the specific bullets that would carry a
+number, so the candidate can supply the real figures for future runs. A
+fabricated metric is the single easiest thing for an interviewer to disprove.
+
+Good: `Owned production support for live systems, investigating and resolving
+complex defects, shipping enhancements and improving application responsiveness
+by 30%.`
+
+Bad: `Worked on performance improvements.` (says nothing)
+Bad: `**Owned production support** for **live systems**...` (bold, blocked by gate)
+
+There is no separate Leadership & Impact section. Leadership belongs in the
+bullets of the role where it happened.
+
+## 5.5 Education, Certifications, Open Source
+
+- **Education**: entries with a complete degree, institution, dates and location.
+  Coursework as one plain line under the entry when it is relevant. Any degree
+  missing its discipline, institution or year is omitted and reported, per
+  Phase 4.
+- **Certifications**: per Phase 4. One per bullet, plain text, no pipes, no bold.
+- **Open source and publications**: include only when the JD makes them relevant
+  and the page budget allows. They are the first thing to cut.
+
+---
+
+# PHASE 5.8: COVER LETTER
+
+Generated from the Phase 1 analysis and the finished resume, not written from
+scratch. Every claim, project or metric must already appear in the resume or the
+master resume.
+
+1. Header block identical in form to the resume, with `kind: cover` in the
+   metadata.
+2. Date, `Month DD, YYYY`.
+3. Recipient: `Hiring Manager` (or a named contact from the JD) and the company.
+4. Salutation.
+5. Opening, 2 to 3 sentences: the exact role, and one hook connecting the
+   candidate's background to it.
+6. Body, 1 to 2 paragraphs: 2 to 3 concrete achievements taken from the resume,
+   chosen against the JD's must-haves. Weave in keywords as ordinary prose.
+7. Closing, 2 to 3 sentences: fit, one concrete detail about this company from
+   the JD, and an interview call to action.
+8. `Sincerely,` and the full name.
+
+250 to 400 words. First person, active voice. Same house style as the resume: no
+bold, no em dashes, no AI register. A letter generic enough to send unmodified to
+another company has failed this step.
+
+---
+
+# MASTER RESUME SYNC
+
+`input/master-resume.md` is the single source of truth across runs. The track
+files are filtered views of it.
+
+**The skill no longer writes JD-detected skills into any master resume.** Those
+go to `data/new-skills-{worktree}.md` and the candidate applies them by hand.
+A JD mentioning a skill is not evidence the candidate has it, and the confirming
+question that used to justify the write is gone.
+
+**Sync only when the user volunteers a real fact in conversation**: a real metric
+for a previously unquantified achievement, real experience not in the file, a
+certification with issuer and dates, or a correction to a parsed fact. That is a
+statement by the candidate about themselves, which is a different thing from a
+keyword found in a posting.
+
+**How**: edit `input/master-resume.md` directly, matching its existing structure.
+Then mirror it into any track file the skill belongs to, so the views stay
+consistent with the master. Mention both edits in the Phase 7 report. If the user
+provides nothing, proceed without fabricating and without chasing them for it.
+
+---
+
+# PHASE 6: VERIFICATION
+
+Self-review does not catch these defects, which is why they recurred for months.
+Run the gates:
+
+```
+python scripts/verify_resume.py {YYYYMMDD}/{company}-{position}-{name}
 ```
 
-### Create Output Files
+Five gates, all blocking:
 
-**File naming**:
+| Gate | Catches |
+|---|---|
+| human style | em dashes, arrows, emoji, AI phrasing, bracketed placeholders |
+| frozen facts | a company, date, location, school or contact value not found in the master resume |
+| headline | a headline that does not track `target-role`, or is a multi-part title |
+| emphasis budget | inline bold anywhere except a skill label |
+| structure & length | missing or forbidden sections, malformed entries, too many skill categories, skill labels over 26 chars, over 1050 words |
+
+`convert_resume.py` runs the same gates plus a page-count check and writes no PDF
+if any fails. **Fix the markdown until the gates pass. Never reach for
+`--no-verify` to get past a failure** — that flag exists for inspecting a
+work-in-progress layout, not for shipping.
+
+Beyond the gates, check by reading:
+
+- Every must-have JD keyword appears at least once, and no keyword more than
+  three times.
+- Every metric traces to the master resume.
+- The most relevant experience is positioned first.
+- Read the summary and three bullets aloud. If any sounds like a press release,
+  rewrite it.
+
+---
+
+# PHASE 7: OUTPUT AND HANDOFF
+
+Save both files to `output/{YYYYMMDD}/`:
+
 - Resume: `{company}-{position}-{name}.md`
 - Cover letter: `{company}-{position}-{name}-cover.md`
 
-**Save Location**: `{output_dir}/{filename}.md` for both files (same directory)
+Then report in chat, not in the files:
 
-### User Handoff Message
 ```
-✓ Resume optimization complete!
+## OPTIMIZATION SUMMARY
 
-**Files saved to**:
-- Resume: [Full path to resume .md]
-- Cover Letter: [Full path to cover letter .md]
+**Target**: [Company] - [Position] - [Level]
+**Tracks used**: [primary track, then any secondary, or "none matched, used master-resume.md"]
 
-**Key changes**:
-- Professional title updated to match JD seniority
-- [X] ATS keywords integrated throughout
-- Technical skills reordered with JD requirements first
-- [X] achievement bullets quantified
-- Strategic keyword emphasis applied
-- Cover letter drafted, tailored to [Company]/[Position]
+### Coverage
+- Must-have keywords covered: [X/Y]
+- Nice-to-have keywords covered: [X/Y]
+- Resume length: [N] words, [N] pages
 
-**Before submitting**:
-1. Review AI-generated content (marked with [AI-Generated])
-2. Verify all achievements and dates
-3. Read the cover letter aloud — personalize tone/details before sending
-4. If `input/master-resume.md` was updated during this run, review those edits
+### Not claimed
+JD requirements with no support in the master resumes, deliberately left out:
+- [keyword] - [why, and what would close it]
 
-**Next steps**:
-- Convert to PDF by running:
-  `python scripts/convert_resume.py "{YYYYMMDD}/{company}-{position}-{name}"`
-- This also generates the cover letter PDF automatically (it looks for the paired
-  `...-cover.md` next to the resume and converts it too) — no separate command needed.
-- Submit with confidence!
+### Omitted for missing detail
+Entries dropped because the master resume records the claim but not the facts:
+- [e.g. SAP certification: recorded as held, but no certification name, module,
+  date or credential ID. Add those to Section 12 to include it next run.]
+
+### Files written for weekend review
+- data/new-skills-[worktree].md: [N] skills across [N] tracks, or "nothing new"
+- data/master-resume-gaps-[worktree].md: [N] entries, or "no gaps"
+
+### Master resume updates
+- [Facts the user volunteered this run and where they were written, or "None"]
+
+### Gaps to review
+- [Anything the candidate should verify before submitting]
 ```
 
-`scripts/convert_resume.py` takes the resume's path (extension optional) and produces both `{name}.pdf` and, if the paired `{name}-cover.md` exists alongside it, `{name}-cover.pdf` — one command, two PDFs. Always print that exact command, filled in with the real output subpath, as the literal last line of the handoff message — so the user can copy-paste it straight from the response. The user runs the conversion manually; this skill never executes it on their behalf.
+Then the handoff:
 
-Immediately after this handoff message, proceed to **Phase 8** below — don't wait for a separate user turn to ask about additional questions.
+```
+Resume and cover letter are ready.
+
+- Resume: [path]
+- Cover letter: [path]
+- New skills logged: [path, or "none this run"]
+- Gaps logged: [path, or "none this run"]
+
+Before submitting:
+1. Verify every achievement and date reads true to you.
+2. Read the cover letter aloud, and adjust the tone if it does not sound like you.
+3. Review any master-resume edits made this run.
+
+The two data files are for whenever you get to them, not for now.
+
+python scripts/convert_resume.py "{YYYYMMDD}/{company}-{position}-{name}"
+```
+
+That command converts both files: it finds the paired `-cover.md` automatically.
+Print it filled in with the real path, as the literal last line. The user runs it
+themselves; this skill never runs it for them.
+
+Then go straight to Phase 8, in the same turn.
 
 ---
 
-## PHASE 8: POST-DELIVERY JOB QUESTIONS (Interactive Loop)
+# PHASE 8: POST-DELIVERY QUESTIONS
 
-Once the handoff message has been printed, the skill has one more standing job: helping the candidate answer any other questions the job posting or application form throws at them (screening questions, "why this role/company", short-answer application fields, etc.), using the resume just generated as the factual grounding.
+Help the candidate answer whatever else the posting or application form asks,
+grounded in the resume just generated.
 
-### Step 1 — Ask
+## Step 1: ask
 
-Ask a single, plain, open-ended question — not a multi-select prompt, since the space of possible questions is unbounded:
+A single plain open question, not a multi-select, since the space is unbounded:
 
 ```
-Do you have any other questions from the job posting or application — screening
-questions, "why do you want this role" prompts, short-answer fields, etc.?
-Paste them and I'll draft answers grounded in the resume above. If not, you're
-all set.
+Any other questions from the posting or application - screening questions,
+"why do you want this role" prompts, short-answer fields? Paste them and I'll
+draft answers grounded in the resume above. If not, you're all set.
 ```
 
-If the user indicates they're done (no questions, "that's all", moves on to a different topic, etc.), stop the loop — do not ask again this session.
+If the user indicates they are done, stop. Do not ask again this session.
 
-### Step 2 — Answer
+## Step 2: answer
 
-For each question the user shares:
-- **Ground every claim in the just-generated optimized resume** (and `input/master-resume.md` where the resume doesn't have enough detail). Never introduce a fact, project, or metric that isn't already in one of those two files — same no-fabrication rule as the rest of this skill.
-- **Write like a human, not an AI.** Short and clean: 2–5 sentences for a typical screening question, longer only if the question explicitly asks for depth (e.g. "describe a challenging project"). No corporate filler ("I am a highly motivated professional..."), no restating the question, no bullet-point lists unless the question itself asks for one, no hedging disclaimers about being an AI.
-- Answer in first person, as the candidate would.
-- If a question can't be answered from the two source files without fabricating (e.g. it asks about salary expectations, availability, visa status, or a fact simply not present anywhere), say so plainly and ask the user for the real answer instead of guessing — do not invent it.
-- If, in the course of answering, the user volunteers a new real fact (a project detail, a metric, a motivation) that would strengthen the resume itself, treat it per **MASTER RESUME SYNC** — offer to fold it into `input/master-resume.md` rather than letting it evaporate into a one-off chat answer.
+- **Ground every claim in the generated resume** or `input/master-resume.md`.
+  Never introduce a fact, project or metric that is not in one of those two files.
+- **Write like the candidate.** 2 to 5 sentences for a typical screening
+  question, longer only when the question asks for depth. No corporate filler, no
+  restating the question, no bullet lists unless asked, no AI-disclaimer hedging.
+  Same house style: no em dashes, no AI register.
+- First person.
+- If a question cannot be answered without fabricating (salary expectations,
+  availability, visa status, a fact simply not recorded), say so plainly and ask
+  the user for the real answer.
+- If the user volunteers a real new fact while answering, offer to fold it into
+  `input/master-resume.md` per MASTER RESUME SYNC.
 
-### Step 3 — Repeat
+## Step 3: repeat
 
-After delivering the answer(s), return to Step 1 and ask again whether there are any more questions. Keep looping — one round per batch of questions the user pastes — until the user signals they're done.
+Return to Step 1 after each batch until the user is done.
 
 ---
 
-## EDGE CASES & HANDLING
+# EDGE CASES
 
 | Scenario | Action |
-|----------|--------|
-| JD mentions a tech skill not in the master resume | Phase 1.5: ask via a well-evidenced multi-select checkbox prompt; add only what's checked |
-| Master resume missing JD skill after Phase 1.5 (declined or non-tech gap) | Bridge via closest adjacent skill if one exists; otherwise omit and flag in report (no question asked) |
-| JD requires certification not held | Auto-generate, clearly marked "[AI-Generated]" (default path, no question asked) |
-| Missing metrics | Use honest qualitative phrasing, or a clearly-scoped conservative estimate; flag in report — never invent a fake number |
-| Combination role | Prioritize first, highlight secondary skills |
-| Junior candidate for senior role | Don't force seniority; highlight relevant depth |
-| User supplies a real fact mid-session (metric, skill, cert) | Reflect it into `input/master-resume.md` per **MASTER RESUME SYNC**, then use it in output |
-| JD is very different from master resume Section 2 ("Always-Required / Core Skills") | Include those skills in Technical Skills anyway (own category if needed); do not bold unless also a genuine JD keyword — see **Always-Include Core Skills** in Phase 2 |
-| User shares extra job/application questions after delivery | Phase 8: answer grounded in the optimized resume + master resume, short and human-sounding, never fabricated; ask again after each round until user is done |
-| Extra question can't be answered without fabricating (salary, visa, availability, etc.) | Say so plainly and ask the user for the real answer — do not guess |
-| Company name unresolvable from JD (Phase 1 placeholder used) | Cover letter recipient line uses the same placeholder; flag in Phase 7 report so the user knows to personalize it |
+|---|---|
+| JD names a tech skill not in any master resume | Log it to the new-skills file. Do not use it this run. Do not ask |
+| Skill missing after Phase 1.5 | Bridge via closest adjacent skill, else omit and flag in the report and gaps file |
+| JD spans several kinds of work | Select up to three tracks, rank them, let the primary drive the document |
+| No track matches the JD | Generate from `input/master-resume.md` alone and log it to the gaps file |
+| Smart-contract, protocol or audit role | Never source from `master-resume-blockchain.md`. Log the mismatch |
+| A track file contradicts `input/master-resume.md` | Facts follow the master. Log the drift |
+| The candidate clearly does not qualify | Still generate, honestly and without inflation. Log why in the gaps file. Never refuse and never ask |
+| `data/` does not exist | Create it. Never skip a log write because the directory is missing |
+| Two sessions running at once | Both append to their own `{worktree}`-named files. Read before appending |
+| JD requires a certification the candidate lacks | Omit it. Report as an unmet requirement. Never generate one |
+| Master resume records a credential but not its details | Omit the entry, report exactly what to add to close it |
+| Missing metric | Honest qualitative phrasing or a clearly-scoped estimate. Never a fabricated number |
+| Resume runs over two pages | Cut the least JD-relevant skill categories first, then the weakest bullet in each role, then optional sections |
+| A gate fails | Fix the markdown. Do not use `--no-verify` |
+| Combination role | Prioritise the primary, keep the secondary visible in skills |
+| Junior candidate, senior posting | Do not inflate the headline. Highlight relevant depth |
+| Section 2 core skills are irrelevant to this JD | Prefer them within the eight-category budget, but do not blow the budget to include them all |
+| Company name unresolvable from the JD | Same placeholder in the cover letter recipient; flag it in the report |
+| User supplies a real fact mid-session | MASTER RESUME SYNC, then use it |
+| Extra question needs a fact nobody recorded | Say so and ask. Do not guess |
 
 ---
 
-## SUCCESS INDICATORS
+# CORE CONSTRAINTS
 
-An optimized resume is successful when:
+**No fabrication**
+- Never invent experience, dates, companies, job titles, certifications or metrics
+- Never claim a JD-only skill. Detecting one and logging it is not evidence the
+  candidate has it
+- Reorder, reframe and select from existing content, nothing more
+- Persist facts the user volunteers into `input/master-resume.md` and the matching
+  track file, rather than asking about them again next run
 
-- ✓ 15-25 ATS keywords from JD naturally distributed
-- ✓ Top keywords appear in Summary + Skills + Achievements
-- ✓ All MUST-HAVE JD requirements addressed
-- ✓ 80%+ of achievement bullets quantified with metrics
-- ✓ Most relevant experience positioned first
-- ✓ Professional title matches target seniority
-- ✓ ATS formatting compliant
-- ✓ 100% factual accuracy maintained
-- ✓ All keywords strategically bolded
-- ✓ Production-ready for job submission
+**Never block on a question**
+- Produce the resume and cover letter on every run, whatever the JD asks for
+- Uncertainty goes to `data/master-resume-gaps-{worktree}.md`, not to the user
+  mid-run
+- Newly detected skills go to `data/new-skills-{worktree}.md`, not to a prompt
+- The only question in the workflow is Phase 8, after both files are delivered
 
----
+**Authenticity**
+- Do not distort an achievement to fit the JD
+- Do not oversell impact
+- What the candidate cannot defend in a technical screen does not go on the page
 
-## CORE CONSTRAINTS
-
-### Absolute No-Fabrication Rule
-- ✗ Never invent experience, dates, or companies
-- ✗ Never claim a JD-only skill as the candidate's own without the Phase 1.5 human confirmation checkbox being checked
-- ✓ Resolve every other gap autonomously per **Autonomous Gap Resolution** — never block the run on a question outside of Phase 1.5
-- ✓ Reorder, reframe, and emphasize existing content only
-- ✓ If real new information does surface (via Phase 1.5 or otherwise), persist it into `input/master-resume.md` (see **MASTER RESUME SYNC**) rather than asking about it repeatedly on future runs
-
-### Maintain Authenticity
-- Don't distort achievements to fit JD
-- Keep career narrative truthful
-- Only emphasize existing accomplishments
-- Don't oversell or overstate impact
-
-### Transparency About AI
-- Mark all AI-generated content clearly
-- Flag certificates as "For ATS pattern-matching only"
-- Always include caveats
-
-### ATS Best Practices
-- Follow modern ML-based ATS guidelines
-- Avoid formatting tricks
-- Use quantified metrics
-- Organize content hierarchically
-
----
-
-## QUICK REFERENCE: EXAMPLES BY ROLE
-
-### Frontend Engineer
-**Keywords to Emphasize**: React, Next.js, TypeScript, Tailwind CSS, Web Vitals, Jest, Playwright
-
-### Backend Engineer
-**Keywords to Emphasize**: Go/Python/Java, PostgreSQL, Redis, gRPC, microservices, REST APIs, CI/CD
-
-### DevOps/SRE
-**Keywords to Emphasize**: Kubernetes, Terraform, Prometheus, Grafana, incident response, SLO/SLI
-
-### AI/LLM Engineer
-**Keywords to Emphasize**: LangChain, LLamaIndex, RAG, Vector Databases, Prompt Engineering
-
----
-
-**Ready to optimize?** Use this complete implementation with your job description and master resume.
+**Honesty about gaps**
+- Unmet requirements are reported in chat every run, never hidden behind a
+  keyword list narrowed until it scores 100%
+- Nothing marked as AI-generated ever reaches the deliverable

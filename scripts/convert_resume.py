@@ -1,384 +1,492 @@
-from pathlib import Path
+"""Render a resume (and its paired cover letter) from markdown to PDF.
+
+The PDF is deliberately plain: one typeface, black text on white, a hairline
+rule under each section heading, and nothing else. Colour, icon glyphs and
+shaded tables all read as generated-by-a-tool, which is the opposite of the
+goal here, so none of them are available.
+
+Layout is structural, never textual. Blank lines and `---` rules in the source
+markdown are ignored entirely -- spacing comes from the element being rendered,
+so two runs of the generator produce the same rhythm regardless of how the
+markdown happened to be spaced.
+
+OUTPUT CONTRACT
+---------------
+The markdown this reads is not free-form. It must look like this:
+
+    <!--
+    target-company: Accuris
+    target-role: SAP Solution Architect
+    -->
+
+    # Gafari Arowojebe
+    SAP Solution Architect
+    arowojebe.gafari.1127@gmail.com | +1 (224) 423-5835 | North Platte, NE
+    linkedin.com/in/gafari-arowojebeg | github.com/codetechie-G
+
+    ## Summary
+
+    One or two short paragraphs.
+
+    ## Technical Skills
+
+    - **Systems and Linux**: Linux, TCP/IP, DNS, distributed systems
+    - **Backend**: Python, Node.js, REST APIs, microservices
+
+    ## Professional Experience
+
+    ### Senior Backend Software Engineer | 02/2024 - 03/2026 | Las Vegas, NV
+    #### NeoVegas Gaming Systems
+
+    - One achievement per bullet.
+
+    ## Education
+
+    ### BSc. in Computer Science | 07/2012 - 05/2017 | St. Paul, MN
+    #### University of St. Thomas
+
+    Relevant Coursework: ...
+
+    ## Certifications
+
+    - Meta Back-End Developer Professional Certificate (Python, APIs)
+
+`###` is `Title | dates | location`: the title sets bold on the left, the rest
+sits grey and right-aligned on the same line. `####` is the company or school
+on the line below. Inline `**bold**` is allowed only on a skill label.
+
+Every file is put through scripts/verify_resume.py first and no PDF is written
+if a gate fails. Pass --no-verify to render anyway for a quick look.
+"""
+
+from __future__ import annotations
+
 import argparse
+import io
 import re
+import sys
+from pathlib import Path
 
-parser = argparse.ArgumentParser(
-    description='Convert a resume markdown file (and its paired cover letter, if present) to PDF.'
-)
-parser.add_argument(
-    'resume_md',
-    nargs='+',
-    help=(
-        'One or more paths to resume markdown files relative to the output/ directory, '
-        "e.g. '20260722/cap-index-software-developer-evan-singleton-emphasize'. "
-        'The .md extension is optional. For each path given, its resume PDF is '
-        "produced, and if a paired '<name>-cover.md' file exists alongside it, "
-        'that cover letter is automatically converted to PDF too — no need to '
-        'pass the cover letter path separately.'
-    ),
-)
-args = parser.parse_args()
-
-root = Path(__file__).resolve().parent.parent
-output_dir = root / 'output'
-
-from reportlab.lib.pagesizes import A4
+from reportlab.lib.colors import HexColor
+from reportlab.lib.enums import TA_CENTER, TA_LEFT
+from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import mm
-from reportlab.lib import colors
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, HRFlowable, Table, TableStyle
-from reportlab.lib.enums import TA_CENTER, TA_LEFT
-from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.platypus import (
+    BaseDocTemplate, CondPageBreak, Frame, HRFlowable, KeepTogether, PageTemplate,
+    Paragraph, Spacer,
+)
 
-# ── Fonts ──────────────────────────────────────────────────────────────────
-# Arial supports Latvian characters (ē, ņ, š, etc.)
-font_dir = Path('C:/Windows/Fonts')
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import verify_resume as V  # noqa: E402
+
+ROOT = Path(__file__).resolve().parent.parent
+OUTPUT_DIR = ROOT / 'output'
+
+# ── Page geometry ──────────────────────────────────────────────────────────
+# The text frame carries no padding of its own. ReportLab's default frame adds
+# 6pt on each side, which paragraphs respect and full-width tables do not, so
+# the two drift apart: job titles and skill labels land 2.1mm left of the
+# section heading above them, and right-aligned dates overhang the body text by
+# the same amount. Zero padding makes MARGIN_X the single true text edge and
+# AVAIL the exact usable width, so every element shares one left edge.
+MARGIN_X = 16 * mm
+MARGIN_Y = 13 * mm
+AVAIL = letter[0] - 2 * MARGIN_X
+
+# ── Palette — greyscale only, by design ────────────────────────────────────
+# Kept dark for contrast. Light grey body text is a readability flag on resume
+# checkers, so the lightest text here is still well above the usual threshold.
+BLACK = HexColor('#000000')
+BODY = HexColor('#1A1A1A')
+GREY = HexColor('#3A3A3A')
+RULE = HexColor('#7A7A7A')
+
+# ── Type ───────────────────────────────────────────────────────────────────
+# One family, sans-serif. Resume screeners consistently ask for a standard sans
+# face (Arial, Helvetica, Open Sans, Roboto, Lato) rather than a serif, so Arial
+# is used where it exists and Helvetica, a core PDF font that is metrically the
+# same and needs no embedding, is the fallback. Never more than one family: a
+# second face is a readability flag on every checker.
+ROMAN, BOLD, ITALIC = 'Helvetica', 'Helvetica-Bold', 'Helvetica-Oblique'
+_FONT_DIR = Path('C:/Windows/Fonts')
 try:
-    pdfmetrics.registerFont(TTFont('Arial',           str(font_dir / 'arial.ttf')))
-    pdfmetrics.registerFont(TTFont('Arial-Bold',      str(font_dir / 'arialbd.ttf')))
-    pdfmetrics.registerFont(TTFont('Arial-Italic',    str(font_dir / 'ariali.ttf')))
-    pdfmetrics.registerFont(TTFont('Arial-BoldItalic',str(font_dir / 'arialbi.ttf')))
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+
+    for _name, _file in (('Arial', 'arial.ttf'), ('Arial-Bold', 'arialbd.ttf'),
+                         ('Arial-Italic', 'ariali.ttf')):
+        pdfmetrics.registerFont(TTFont(_name, str(_FONT_DIR / _file)))
     pdfmetrics.registerFontFamily(
-        'Arial',
-        normal='Arial', bold='Arial-Bold',
-        italic='Arial-Italic', boldItalic='Arial-BoldItalic',
-    )
-    F = 'Arial'
+        'Arial', normal='Arial', bold='Arial-Bold', italic='Arial-Italic')
+    ROMAN, BOLD, ITALIC = 'Arial', 'Arial-Bold', 'Arial-Italic'
 except Exception:
-    F = 'Helvetica'   # fallback (limited Unicode)
+    pass   # Helvetica already set above
 
-# ── Icon font ──────────────────────────────────────────────────────────────
-# Segoe UI Symbol has real outline glyphs for envelope/phone/pin/link (unlike
-# Segoe UI Emoji, which is a colour font ReportLab can't render).
-ICON_FONT = None
-ICONS = {
-    'email':    '✉',      # envelope
-    'phone':    '☎',      # telephone
-    'location': '\U0001F4CD',  # round pushpin
-    'link':     '\U0001F517',  # link
-}
-icon_font_path = font_dir / 'seguisym.ttf'
-if icon_font_path.exists():
-    try:
-        pdfmetrics.registerFont(TTFont('Icons', str(icon_font_path)))
-        ICON_FONT = 'Icons'
-    except Exception:
-        ICON_FONT = None
+# ReportLab's canvas opens with Helvetica, which leaves it declared in every
+# page's font resources even when nothing renders in it. Harmless to a parser
+# that reads the drawn text, but a checker that counts declared fonts would see
+# a third face, so the base font is pointed at the family actually in use.
+from reportlab import rl_config  # noqa: E402
 
-# ── Colour palette ─────────────────────────────────────────────────────────
-DARK_BLUE  = colors.HexColor('#1B3A5C')
-ACCENT     = colors.HexColor('#2E6DA4')
-GRAY       = colors.HexColor('#555555')
-RULE_COLOR = colors.HexColor('#B0C4D8')
-TEXT       = colors.HexColor('#1A1A1A')
+rl_config.canvas_basefontname = ROMAN
 
-# ── Paragraph styles ───────────────────────────────────────────────────────
-def S(name, **kw):
-    return ParagraphStyle(name, **kw)
+NAME_STYLE = ParagraphStyle(
+    'Name', fontName=BOLD, fontSize=19, leading=23, textColor=BLACK, alignment=TA_CENTER)
+HEADLINE_STYLE = ParagraphStyle(
+    'Headline', fontName=BOLD, fontSize=11.5, leading=14, textColor=BLACK, alignment=TA_CENTER)
+CONTACT_STYLE = ParagraphStyle(
+    'Contact', fontName=ROMAN, fontSize=9.5, leading=12.6, textColor=GREY, alignment=TA_CENTER)
+SECTION_STYLE = ParagraphStyle(
+    'Section', fontName=BOLD, fontSize=11.5, leading=14, textColor=BLACK,
+    spaceBefore=4 * mm)
+BODY_STYLE = ParagraphStyle(
+    'Body', fontName=ROMAN, fontSize=10, leading=13, textColor=BODY,
+    alignment=TA_LEFT, spaceAfter=1.2 * mm)
+BULLET_STYLE = ParagraphStyle(
+    'Bullet', fontName=ROMAN, fontSize=10, leading=12.8, textColor=BODY,
+    alignment=TA_LEFT, leftIndent=4 * mm, bulletIndent=0, spaceAfter=0.6 * mm,
+    # Without this the bullet marker silently falls back to Helvetica, which
+    # embeds a second font face for the sake of one hyphen.
+    bulletFontName=ROMAN, bulletFontSize=10)
+# Job title and degree: bold, per the "bold your job titles" guidance.
+ENTRY_TITLE_STYLE = ParagraphStyle(
+    'EntryTitle', fontName=BOLD, fontSize=10.5, leading=13.2, textColor=BLACK,
+    alignment=TA_LEFT)
+# Company or school, then dates and location on the same line. Bold on the
+# organisation only, so it reads as a name rather than as emphasis.
+ENTRY_SUB_STYLE = ParagraphStyle(
+    'EntrySub', fontName=ROMAN, fontSize=10, leading=13, textColor=GREY,
+    alignment=TA_LEFT)
+SKILL_STYLE = ParagraphStyle(
+    'Skill', fontName=ROMAN, fontSize=10, leading=13, textColor=BODY,
+    alignment=TA_LEFT, leftIndent=4 * mm, firstLineIndent=-4 * mm,
+    spaceAfter=1.1 * mm)
 
-NAME_STYLE    = S('Name',    fontName=f'{F}-Bold',   fontSize=26, textColor=DARK_BLUE,
-                  alignment=TA_CENTER, spaceAfter=1*mm,  leading=30)
-SUB_STYLE     = S('Sub',     fontName=F,             fontSize=13, textColor=ACCENT,
-                  alignment=TA_CENTER, spaceAfter=1.5*mm, leading=16)
-CONTACT_STYLE = S('Contact', fontName=F,             fontSize=9,  textColor=GRAY,
-                  alignment=TA_CENTER, spaceAfter=5*mm,  leading=12)
-H2_STYLE      = S('H2',     fontName=f'{F}-Bold',   fontSize=12, textColor=DARK_BLUE,
-                  spaceBefore=5*mm, spaceAfter=2*mm, leading=16)
-H3_STYLE      = S('H3',     fontName=f'{F}-Bold',   fontSize=11, textColor=TEXT,
-                  spaceBefore=3*mm, spaceAfter=1*mm, leading=14)
-BODY_STYLE    = S('Body',   fontName=F,             fontSize=10, textColor=TEXT,
-                  spaceAfter=1.5*mm, leading=14)
-BULLET_STYLE  = S('Bullet', fontName=F,             fontSize=10, textColor=TEXT,
-                  leftIndent=5*mm, spaceAfter=1*mm, leading=13)
-STACK_STYLE   = S('Stack',  fontName=f'{F}-Italic', fontSize=9,  textColor=GRAY,
-                  spaceAfter=3*mm, leading=12)
+# No tables anywhere in this renderer, by design. Every flowable is a paragraph,
+# so the extracted text order is the reading order.
 
-# ── Markdown helpers ───────────────────────────────────────────────────────
+
+# ── Inline markdown ────────────────────────────────────────────────────────
 def escape_xml(text: str) -> str:
     return text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
 
-def remove_emoji(text: str) -> str:
-    """Remove emoji characters that Arial font doesn't support."""
-    emoji_pattern = re.compile(
-        "["
-        "\U0001F600-\U0001F64F"  # emoticons
-        "\U0001F300-\U0001F5FF"  # symbols & pictographs
-        "\U0001F680-\U0001F6FF"  # transport & map symbols
-        "\U0001F1E0-\U0001F1FF"  # flags (iOS)
-        "\U0001F900-\U0001F9FF"  # supplemental symbols
-        "\U00002600-\U000027BF"  # misc symbols & dingbats
-        "]+", flags=re.UNICODE)
-    return emoji_pattern.sub('', text).strip()
 
-def convert_markdown_links(text: str) -> str:
-    """Convert markdown links [text](url) to just the text."""
-    return re.sub(r'\[([^\]]+)\]\([^\)]+\)', r'\1', text)
+# Autolinking. The visible text is never rewritten, only wrapped, so an ATS
+# still reads "linkedin.com/in/gafari-arowojebeg" as plain text while a human
+# reader gets a working link. Underline is the only affordance: a blue link
+# would put colour back into a deliberately greyscale document.
+EMAIL_RE = re.compile(r'\b[\w.+-]+@[\w-]+\.[\w.-]*\w\b')
+URL_RE = re.compile(
+    r'\b(?:https?://|www\.)\S+?(?=[.,;:)\]]?(?:\s|$))'
+    r'|\b(?:[\w-]+\.)+(?:com|org|net|io|dev|co|me|ai|app|xyz|edu|gov)'
+    r'(?:/[^\s|]*)?'
+)
 
-def md_inline(text: str) -> str:
-    """Convert **bold** and *italic* markdown to ReportLab XML tags."""
+
+def _anchor(href: str, label: str) -> str:
+    return f'<a href="{href}"><u>{label}</u></a>'
+
+
+def autolink(escaped: str) -> str:
+    """Wrap bare emails and URLs in link annotations. Input must be XML-escaped."""
+    def email(m):
+        return _anchor(f'mailto:{m.group(0)}', m.group(0))
+
+    def url(m):
+        raw = m.group(0)
+        has_scheme = raw.lower().startswith(('http://', 'https://', 'www.'))
+        # A bare "word.tld" match with no scheme is only trusted as a URL when
+        # its host portion is lower case, as a real domain always is written
+        # (linkedin.com, github.com). A path or username after the slash, such
+        # as GitHub's "codetechie-G", may still be mixed case. This is what
+        # tells "github.com/codetechie-G" apart from a mixed-case technology
+        # name that happens to end in a TLD word, like "ASP.NET".
+        if not has_scheme:
+            host = raw.split('/', 1)[0]
+            if host != host.lower():
+                return raw
+        href = raw if has_scheme else f'https://{raw}'
+        return _anchor(href, raw)
+
+    # Emails first: an address contains a domain the URL pattern would match.
+    parts, last = [], 0
+    for m in EMAIL_RE.finditer(escaped):
+        parts.append(URL_RE.sub(url, escaped[last:m.start()]))
+        parts.append(email(m))
+        last = m.end()
+    parts.append(URL_RE.sub(url, escaped[last:]))
+    return ''.join(parts)
+
+
+def inline(text: str, link: bool = True) -> str:
+    """Markdown emphasis to ReportLab's inline markup, with URLs made clickable."""
     text = escape_xml(text)
+    if link:
+        text = autolink(text)
     text = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', text)
-    text = re.sub(r'\*(.+?)\*',     r'<i>\1</i>', text)
+    text = re.sub(r'(?<!\*)\*([^*]+?)\*(?!\*)', r'<i>\1</i>', text)
     return text
 
-def icon(key: str) -> str:
-    """Inline icon-font tag for a contact-info glyph, or '' if no icon font loaded."""
-    if not ICON_FONT:
-        return ''
-    ch = ICONS.get(key)
-    if not ch:
-        return ''
-    return f'<font name="{ICON_FONT}" size="9" color="#555555">{ch}</font> '
 
-def add_contact_icon(segment: str) -> str:
-    """Detect the contact-info type of a header segment and prefix it with an icon."""
-    link_match = re.match(r'^\[([^\]]+)\]\(([^)]+)\)$', segment.strip())
-    if link_match:
-        label, url = link_match.group(1), link_match.group(2)
-        url_l = url.lower()
-        if 'linkedin' in url_l:
-            return f'{icon("link")}<b>LinkedIn:</b> {escape_xml(label)}'
-        if 'github' in url_l:
-            username = label.split('/')[-1] if '/' in label else label
-            return f'{icon("link")}<b>GitHub:</b> {escape_xml(username)}'
-        return f'{icon("link")}{escape_xml(label)}'
+# ── Flowable builders ──────────────────────────────────────────────────────
+# A heading stranded at the foot of a page with its content overleaf is the one
+# layout fault the flow model will happily produce on its own. Both headings
+# demand enough room for a first line or two of what they introduce.
+SECTION_ORPHAN_GUARD = 22 * mm
+ENTRY_ORPHAN_GUARD = 26 * mm
 
-    text = segment.strip()
-    if re.match(r'^[\w.+-]+@[\w.-]+\.\w+$', text):
-        return f'{icon("email")}{escape_xml(text)}'
-    if re.match(r'^\+?[\d][\d\s().-]{5,}$', text):
-        return f'{icon("phone")}{escape_xml(text)}'
-    if 'linkedin.com' in text.lower():
-        return f'{icon("link")}<b>LinkedIn:</b> {escape_xml(text)}'
-    if 'github.com' in text.lower():
-        username = text.rstrip('/').split('/')[-1]
-        return f'{icon("link")}<b>GitHub:</b> {escape_xml(username)}'
-    # Fallback: treat as a location / generic line
-    return f'{icon("location")}{escape_xml(text)}'
 
-def parse_markdown_table(lines: list, start_idx: int) -> tuple:
-    """Parse a markdown table starting at start_idx. Returns (table_data, end_idx)."""
-    table_rows = []
-    i = start_idx
+def section_heading(title: str) -> list:
+    """Heading plus its hairline rule, kept on one page together."""
+    return [
+        CondPageBreak(SECTION_ORPHAN_GUARD),
+        KeepTogether([
+            Paragraph(escape_xml(title).upper(), SECTION_STYLE),
+            HRFlowable(width='100%', thickness=0.4, color=RULE,
+                       spaceBefore=0.8 * mm, spaceAfter=2.4 * mm),
+        ]),
+    ]
 
-    # Parse header row
-    if i < len(lines) and lines[i].strip().startswith('|'):
-        header_cells = [c.strip() for c in lines[i].strip().strip('|').split('|')]
-        table_rows.append([md_inline(c) if c else '' for c in header_cells])
+
+def entry_heading(title: str, meta_parts: list[str], subtitle: str) -> list:
+    """Job or degree, as two plain lines.
+
+    Line one is the bold title. Line two is the bold organisation followed by
+    dates and location. This used to be a two-column table with the dates
+    right-aligned, which looked tidier but is exactly the structure resume
+    parsers are warned about: a table can extract out of order or collapse into
+    one blob. Two ordinary paragraphs extract in reading order every time.
+    """
+    flowables = [Paragraph(inline(title), ENTRY_TITLE_STYLE)]
+
+    line = ' | '.join(p for p in [f'<b>{inline(subtitle)}</b>' if subtitle else ''] +
+                      [escape_xml(p) for p in meta_parts if p] if p)
+    if line:
+        flowables.append(Paragraph(line, ENTRY_SUB_STYLE))
+    flowables.append(Spacer(1, 1.4 * mm))
+    return [CondPageBreak(ENTRY_ORPHAN_GUARD), KeepTogether(flowables)]
+
+
+def skill_row(label: str, value: str) -> Paragraph:
+    """One `Label: values` line, bold label, hanging indent on the wrap.
+
+    Also formerly a table. A single paragraph keeps the label and its values
+    adjacent in the extracted text, which is what a keyword scanner reads, and
+    gives the values the full width of the page instead of two thirds of it.
+    """
+    return Paragraph(f'<b>{escape_xml(label)}:</b> {inline(value)}', SKILL_STYLE)
+
+
+# ── Markdown to flowables ──────────────────────────────────────────────────
+def build_story(text: str) -> list:
+    doc = V.Doc(text)
+    lines = doc.body.splitlines()
+    story: list = []
+
+    pending_skills: list[tuple[str, str]] = []
+    paragraph: list[str] = []
+    section = ''
+
+    def flush_paragraph():
+        if paragraph:
+            story.append(Paragraph(inline(' '.join(paragraph)), BODY_STYLE))
+            paragraph.clear()
+
+    def flush_skills():
+        if pending_skills:
+            story.extend(skill_row(label, value) for label, value in pending_skills)
+            story.append(Spacer(1, 0.6 * mm))
+            pending_skills.clear()
+
+    def flush_all():
+        flush_paragraph()
+        flush_skills()
+
+    i = 0
+    while i < len(lines):
+        line = lines[i].strip()
+
+        # Header block: name, then headline, then contact lines.
+        if line.startswith('# '):
+            flush_all()
+            story.append(Paragraph(escape_xml(line[2:].strip()), NAME_STYLE))
+            i += 1
+            first = True
+            while i < len(lines) and lines[i].strip():
+                value = lines[i].strip()
+                if first:
+                    story.append(Spacer(1, 1.2 * mm))
+                    story.append(Paragraph(inline(value), HEADLINE_STYLE))
+                    story.append(Spacer(1, 1.6 * mm))
+                    first = False
+                else:
+                    story.append(Paragraph(inline(value), CONTACT_STYLE))
+                i += 1
+            story.append(Spacer(1, 1.4 * mm))
+            continue
+
+        if not line or line == '---':
+            flush_paragraph()
+            i += 1
+            continue
+
+        m = V.SECTION_RE.match(line)
+        if m:
+            flush_all()
+            section = m.group(1).strip().upper()
+            story.extend(section_heading(m.group(1).strip()))
+            i += 1
+            continue
+
+        m = V.ENTRY_RE.match(line)
+        if m:
+            flush_all()
+            parts = [p.strip() for p in m.group(1).split('|')]
+            subtitle = ''
+            if i + 1 < len(lines):
+                sm = V.SUBENTRY_RE.match(lines[i + 1].strip())
+                if sm:
+                    subtitle = sm.group(1).strip()
+                    i += 1
+            story.extend(entry_heading(parts[0], parts[1:], subtitle))
+            i += 1
+            continue
+
+        m = V.SUBENTRY_RE.match(line)          # stray #### with no ### above it
+        if m:
+            flush_all()
+            story.append(Paragraph(inline(m.group(1).strip()), ENTRY_SUB_STYLE))
+            i += 1
+            continue
+
+        m = V.SKILL_ROW_RE.match(line)
+        if m and section == 'TECHNICAL SKILLS':
+            flush_paragraph()
+            pending_skills.append((m.group(1).strip(), m.group(2).strip()))
+            i += 1
+            continue
+
+        if line.startswith('- '):
+            flush_all()
+            story.append(Paragraph(inline(line[2:].strip()), BULLET_STYLE, bulletText='-'))
+            i += 1
+            continue
+
+        flush_skills()
+        paragraph.append(line)
         i += 1
 
-        # Skip separator row
-        if i < len(lines) and re.match(r'^\|[\s\-|]+\|$', lines[i].strip()):
-            i += 1
+    flush_all()
+    return story
 
-        # Parse data rows
-        while i < len(lines) and lines[i].strip().startswith('|'):
-            if re.match(r'^\|[\s\-|]+\|$', lines[i].strip()):
-                i += 1
-                continue
-            cells = [c.strip() for c in lines[i].strip().strip('|').split('|')]
-            table_rows.append([md_inline(c) if c else '' for c in cells])
-            i += 1
 
-    return table_rows, i
+# ── Rendering ──────────────────────────────────────────────────────────────
+def render(md_path: Path, title: str) -> tuple[bytes, int]:
+    """Build the PDF in memory. Returns its bytes and its page count."""
+    buffer = io.BytesIO()
+    doc = BaseDocTemplate(
+        buffer, pagesize=letter,
+        leftMargin=MARGIN_X, rightMargin=MARGIN_X,
+        topMargin=MARGIN_Y, bottomMargin=MARGIN_Y,
+        title=title, author=title.split(' - ')[0],
+    )
+    frame = Frame(
+        MARGIN_X, MARGIN_Y, AVAIL, letter[1] - 2 * MARGIN_Y,
+        leftPadding=0, rightPadding=0, topPadding=0, bottomPadding=0,
+        id='body',
+    )
+    doc.addPageTemplates([PageTemplate(id='page', frames=[frame])])
+    doc.build(build_story(md_path.read_text(encoding='utf-8')))
+    return buffer.getvalue(), doc.page
 
-def create_skills_table(table_data: list) -> Table:
-    """Create a styled ReportLab Table for skills matrix."""
-    # Convert string content to Paragraph objects for better text wrapping
-    para_rows = []
-    for row_idx, row in enumerate(table_data):
-        para_row = []
-        for cell_idx, cell in enumerate(row):
-            if row_idx == 0:  # Header row
-                style = ParagraphStyle(
-                    'TableHeader',
-                    fontName=f'{F}-Bold',
-                    fontSize=10,
-                    textColor=DARK_BLUE,
-                    alignment=TA_LEFT,
-                )
-            else:
-                style = ParagraphStyle(
-                    'TableBody',
-                    fontName=F,
-                    fontSize=9,
-                    textColor=TEXT,
-                    alignment=TA_LEFT,
-                )
-            para_row.append(Paragraph(cell, style))
-        para_rows.append(para_row)
-
-    tbl = Table(para_rows, colWidths=[40*mm, 110*mm])
-    tbl.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#E8EEF5')),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
-        ('TOPPADDING', (0, 0), (-1, 0), 6),
-        ('LEFTPADDING', (0, 0), (-1, -1), 5),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 5),
-        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F9FBFD')]),
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#D0D8E0')),
-        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-    ]))
-    return tbl
-
-def hr():
-    return HRFlowable(width='100%', thickness=0.8, color=RULE_COLOR,
-                      spaceAfter=3*mm, spaceBefore=1*mm)
 
 def resolve_md_path(raw_arg: str) -> Path:
-    """Validate a CLI path argument and resolve it to an absolute .md path inside output/."""
+    """Validate a CLI argument and resolve it to an absolute .md path inside output/."""
     resume_md = Path(raw_arg)
     if resume_md.is_absolute() or '..' in resume_md.parts:
-        raise ValueError('Pass only a relative path inside the output/ directory, not a path.')
+        raise ValueError('Pass only a relative path inside the output/ directory.')
     if resume_md.suffix == '':
         resume_md = resume_md.with_suffix('.md')
     elif resume_md.suffix.lower() != '.md':
         raise ValueError(f'File must be a .md file: {resume_md}')
 
-    md_path = (output_dir / resume_md).resolve()
-    if output_dir.resolve() not in md_path.parents:
+    md_path = (OUTPUT_DIR / resume_md).resolve()
+    if OUTPUT_DIR.resolve() not in md_path.parents:
         raise ValueError(f'File must be inside output/: {resume_md}')
     if not md_path.exists():
         raise FileNotFoundError(f'Markdown file not found: {md_path}')
     return md_path
 
-def convert_to_pdf(md_path: Path) -> Path:
-    """Parse one markdown file into flowables and render it to a PDF next to itself."""
+
+def convert(md_path: Path, skip_verify: bool) -> bool:
+    """Verify then write. Returns False if a gate blocked the write."""
+    text = md_path.read_text(encoding='utf-8')
+    is_cover = md_path.stem.endswith('-cover')
+
+    gates = {} if skip_verify else V.verify(text, is_cover=is_cover)
+    pdf_bytes, pages = render(md_path, md_path.stem)
+
+    budget = V.MAX_PAGES_COVER if is_cover else V.MAX_PAGES_RESUME
+    if not skip_verify and pages > budget:
+        gates.setdefault('structure & length', []).append(
+            f'renders to {pages} pages, over the {budget}-page budget'
+        )
+
+    if not skip_verify:
+        if not V.report(md_path.name, gates):
+            print(f'\n  BLOCKED, no PDF written: {md_path.name}')
+            print('  Fix the items above and re-run, or pass --no-verify to render anyway.\n')
+            return False
+        print(f'  pages                {pages}')
+        print()
+
     pdf_path = md_path.with_suffix('.pdf')
+    try:
+        pdf_path.write_bytes(pdf_bytes)
+    except PermissionError:
+        print(f'  Cannot write {pdf_path.name}: it is open in another program. '
+              f'Close it and re-run.')
+        return False
+    print(f'Wrote {pdf_path}  ({pages} page{"s" if pages != 1 else ""})')
+    return True
 
-    text  = md_path.read_text(encoding='utf-8')
-    lines = text.splitlines()
 
-    story = []
-    i = 0
+def main() -> int:
+    if hasattr(sys.stdout, 'reconfigure'):
+        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
-    while i < len(lines):
-        line = lines[i]
+    ap = argparse.ArgumentParser(
+        description='Convert a resume markdown file (and its paired cover letter) to PDF.')
+    ap.add_argument(
+        'resume_md', nargs='+',
+        help=("One or more paths relative to output/, e.g. "
+              "'20260801/accuris-sap-solution-architect-gafari-arowojebe'. The .md "
+              "extension is optional. A paired '<name>-cover.md' alongside the resume "
+              "is converted automatically."))
+    ap.add_argument(
+        '--no-verify', action='store_true',
+        help='render without running the quality gates (for a quick look only)')
+    args = ap.parse_args()
 
-        # ── Stop / skip sections not wanted in the PDF ──────────────────────
-        if re.match(r'^##\s+Gap Analysis', line, re.IGNORECASE):
-            break   # everything after this is editorial notes
+    converted: set[Path] = set()
+    ok = True
 
-        # ── H1 — candidate name ───────────────────────────────────────────────
-        if line.startswith('# '):
-            name = line[2:].strip()
-            story.append(Paragraph(escape_xml(name), NAME_STYLE))
-            # Next non-empty line is subtitle, then contact
-            j = i + 1
-            subtitle_added = False
-            contact_lines = []
-            while j < len(lines):
-                nxt = lines[j].strip()
-                if nxt == '' and (subtitle_added or contact_lines):
-                    break
-                if nxt and not subtitle_added:
-                    nxt_clean = remove_emoji(nxt)
-                    nxt_clean = convert_markdown_links(nxt_clean)
-                    story.append(Paragraph(md_inline(nxt_clean), SUB_STYLE))
-                    subtitle_added = True
-                elif nxt and subtitle_added:
-                    # Collect all contact lines (can be multiple), icon-tagging each segment
-                    segments = [remove_emoji(seg.strip()) for seg in nxt.split('|')]
-                    contact_lines.append(' · '.join(add_contact_icon(seg) for seg in segments if seg))
-                j += 1
-
-            # Add all contact lines together
-            if contact_lines:
-                combined_contact = ' · '.join(contact_lines)
-                story.append(Paragraph(combined_contact, CONTACT_STYLE))
-            i = j + 1
+    for raw_arg in args.resume_md:
+        md_path = resolve_md_path(raw_arg)
+        if md_path in converted:
             continue
+        ok &= convert(md_path, args.no_verify)
+        converted.add(md_path)
 
-        # ── Horizontal rule ────────────────────────────────────────────────────
-        if line.strip() == '---':
-            story.append(hr())
-            i += 1
-            continue
+        if not md_path.stem.endswith('-cover'):
+            cover_path = md_path.with_name(md_path.stem + '-cover.md')
+            if cover_path.exists() and cover_path not in converted:
+                ok &= convert(cover_path, args.no_verify)
+                converted.add(cover_path)
 
-        # ── H2 — section header ───────────────────────────────────────────────
-        if line.startswith('## '):
-            title = line[3:].strip()
-            story.append(Paragraph(escape_xml(title).upper(), H2_STYLE))
-            i += 1
-            continue
-
-        # ── H3 — company / institution ────────────────────────────────────────
-        if line.startswith('### '):
-            title = line[4:].strip()
-            story.append(Paragraph(escape_xml(title), H3_STYLE))
-            i += 1
-            continue
-
-        # ── Bullet point ──────────────────────────────────────────────────────
-        if line.startswith('- '):
-            content = md_inline(line[2:].strip())
-            story.append(Paragraph(f'• {content}', BULLET_STYLE))
-            i += 1
-            continue
-
-        # ── Table rows (| col | col |) — render as styled table ─────────────────
-        if line.strip().startswith('|'):
-            # Check if this is the start of a table by looking ahead
-            table_data, next_i = parse_markdown_table(lines, i)
-            if table_data:
-                tbl = create_skills_table(table_data)
-                story.append(tbl)
-                story.append(Spacer(1, 3*mm))
-                i = next_i
-                continue
-            else:
-                i += 1
-                continue
-
-        # ── Bold job-title / date line  e.g.  **Title** | date ────────────────
-        if line.startswith('**') and '|' in line:
-            story.append(Paragraph(md_inline(line), BODY_STYLE))
-            i += 1
-            continue
-
-        # ── Primary Tech Stack line ────────────────────────────────────────────
-        if line.startswith('**Primary Tech Stack'):
-            story.append(Paragraph(md_inline(line), STACK_STYLE))
-            i += 1
-            continue
-
-        # ── Empty line ─────────────────────────────────────────────────────────
-        if line.strip() == '':
-            story.append(Spacer(1, 2*mm))
-            i += 1
-            continue
-
-        # ── Default — regular paragraph text ──────────────────────────────────
-        story.append(Paragraph(md_inline(line), BODY_STYLE))
-        i += 1
-
-    # ── Build PDF ────────────────────────────────────────────────────────────
-    doc = SimpleDocTemplate(
-        str(pdf_path),
-        pagesize=A4,
-        leftMargin=18*mm, rightMargin=18*mm,
-        topMargin=16*mm,  bottomMargin=16*mm,
-        title=md_path.stem,
-    )
-    doc.build(story)
-    return pdf_path
+    return 0 if ok else 1
 
 
-converted = set()
-
-for raw_arg in args.resume_md:
-    md_path = resolve_md_path(raw_arg)
-    if md_path in converted:
-        continue
-    pdf_path = convert_to_pdf(md_path)
-    converted.add(md_path)
-    print('Wrote', pdf_path)
-
-    # Auto-convert the paired cover letter, if one exists alongside this file.
-    if not md_path.stem.endswith('-cover'):
-        cover_path = md_path.with_name(md_path.stem + '-cover.md')
-        if cover_path.exists() and cover_path not in converted:
-            cover_pdf_path = convert_to_pdf(cover_path)
-            converted.add(cover_path)
-            print('Wrote', cover_pdf_path)
+if __name__ == '__main__':
+    raise SystemExit(main())
