@@ -69,7 +69,7 @@ your-project/
 │       ├── manifest.json (metadata)
 │       └── SHARING-GUIDE.md (this guide)
 ├── input/ (create this directory)
-│   ├── jd.txt (job description)
+│   ├── jd.txt (job description, or jd-{worktree}.txt per worktree)
 │   └── master-resume.md (your resume)
 └── output_YYYYMMDD/ (created automatically)
     └── {company}-{position}-{name}-emphasize.md (optimized resume)
@@ -79,6 +79,8 @@ your-project/
 ```
 1. Create input/ directory in your project
 2. Add your job description as input/jd.txt
+   (or input/jd-{worktree}.txt if you run several worktrees at once;
+    {worktree} is the repo directory name, and the skill prefers it)
 3. Add your master resume as input/master-resume.md
 ```
 
@@ -205,7 +207,9 @@ Submit with confidence
 ## 📊 What Partners Can Expect
 
 ### Input Quality
-- `input/jd.txt`: Any job posting (copy-paste from LinkedIn, company site, etc.)
+- `input/jd.txt`: Any job posting (copy-paste from LinkedIn, company site, etc.).
+  For concurrent sessions, use `input/jd-{worktree}.txt` instead: the skill checks
+  that first and falls back to `jd.txt`
 - `input/master-resume.md`: Comprehensive master resume with all skills and experience
 
 ### Output Quality
@@ -273,7 +277,7 @@ their-project/
 │   ├── manifest.json ← Metadata
 │   └── SHARING-GUIDE.md ← This guide
 ├── input/ ← They create this
-│   ├── jd.txt ← Their job description
+│   ├── jd.txt ← Their job description (or jd-{worktree}.txt)
 │   └── master-resume.md ← Their master resume
 └── output_{date}/ ← Created automatically
     └── optimized-resume.md ← Their output
@@ -287,7 +291,7 @@ their-project/
 
 | Issue | Solution |
 |-------|----------|
-| "Files not found" | Check input/ directory exists, file names are exactly jd.txt and master-resume.md |
+| "Files not found" | Check input/ directory exists. The skill looks for input/jd-{worktree}.txt first, then input/jd.txt, and needs input/master-resume.md |
 | "Skill not loading" | Copy entire IMPLEMENTATION PROMPT section, paste as system prompt in Claude |
 | "Output not generated" | Wait for all 7 phases to complete (5-10 minutes), check terminal for progress |
 | "Emphasis looks wrong" | Manually adjust bold formatting in output file before converting to PDF |

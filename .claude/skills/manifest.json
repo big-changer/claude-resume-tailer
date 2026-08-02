@@ -26,10 +26,10 @@
       "inputs": [
         {
           "name": "jd_path",
-          "description": "Path to job description file (default: input/jd.txt)",
+          "description": "Path to the job description. Namespaced by worktree so concurrent sessions do not share one posting (default: input/jd-{worktree}.txt, falling back to input/jd.txt)",
           "type": "file_path",
           "required": false,
-          "default": "input/jd.txt"
+          "default": "input/jd-{worktree}.txt"
         },
         {
           "name": "resume_path",
@@ -142,7 +142,8 @@
         "Facts always come from input/master-resume.md, never from a track file",
         "No em dashes, arrows, emoji or AI-register phrasing",
         "No inline bold outside technical-skill labels",
-        "Report unmet requirements every run rather than narrowing the keyword list until it scores 100%"
+        "Report unmet requirements every run rather than narrowing the keyword list until it scores 100%",
+        "Never read another worktree's jd-*.txt, even when the expected one is missing"
       ],
       "research_basis": {
         "ats_evolution": "Modern ATS use ML for contextual relevance scoring",
@@ -159,7 +160,7 @@
         ]
       },
       "example_workflow": {
-        "step1": "Prepare input/jd.txt. The master resumes are already in place",
+        "step1": "Put the posting in input/jd-{worktree}.txt, where {worktree} is the repo directory name. The master resumes are already in place",
         "step2": "Run the skill. It does not stop to ask anything",
         "step3": "Skill picks the matching master-resume-{track}.md files from the JD's role responsibilities",
         "step4": "Skill writes the resume and cover letter to output/{YYYYMMDD}/",
@@ -193,5 +194,5 @@
     "skills_directory": ".claude/skills"
   },
   "version": "2.0.0",
-  "last_updated": "2026-08-02"
+  "last_updated": "2026-08-03"
 }

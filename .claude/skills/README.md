@@ -15,7 +15,8 @@ tailored two-page resume and a matching cover letter that read as if a person
 wrote them.
 
 **Input**
-- `input/jd.txt` - job description
+- `input/jd-{worktree}.txt` - job description, one per worktree so concurrent
+  sessions each work their own posting. Falls back to `input/jd.txt`
 - `input/master-resume.md` - the source of truth for every fact
 - `input/master-resume-{track}.md` - per-track skill sources, selected from the
   JD's role responsibilities
@@ -133,7 +134,8 @@ runs produce the same rhythm regardless of how the markdown was spaced.
 ## Usage
 
 ```bash
-# 1. Put the posting in input/jd.txt
+# 1. Put the posting in input/jd-{worktree}.txt
+#    {worktree} is the repo directory name: basename $(git rev-parse --show-toplevel)
 # 2. Run the skill
 # 3. Convert, which also converts the paired cover letter
 python scripts/convert_resume.py "20260801/accuris-sap-solution-architect-gafari-arowojebe"

@@ -6,7 +6,7 @@ wrote them.
 
 ```
 Input:
-  - input/jd.txt                    job description
+  - input/jd-{worktree}.txt         job description, one per worktree
   - input/master-resume.md          the source of truth for every FACT
   - input/master-resume-{track}.md  per-track skill sources, selected in Phase 1.2
 
@@ -163,8 +163,9 @@ no bullets, 250 to 400 words.
 
 # PHASE 0: RUN CONTEXT
 
-Two sessions can run against this repo at once, so every file this skill writes
-outside `output/` is namespaced by worktree.
+Several sessions can run against this repo at once, each in its own worktree and
+each working a different posting. So the job description this skill reads, and
+every file it writes outside `output/`, is namespaced by worktree.
 
 ## Resolve the worktree slug, once, at the start of the run
 
@@ -179,6 +180,24 @@ checkout at `f:\Work\Tech\resume-generator-v2-gafari` gives
 
 If the command fails (not a git repo), use `local` and note it in the Phase 7
 report.
+
+## Locate the job description
+
+The JD is **`input/jd-{worktree}.txt`**. Resolve it before Phase 1:
+
+1. `input/jd-{worktree}.txt` exists: use it. This is the normal case.
+2. It does not exist, but `input/jd.txt` does: use `input/jd.txt`, and say so in
+   the first line of the Phase 7 report. This is the single-session fallback and
+   is **unsafe when sessions run concurrently**, because every worktree without
+   its own file will read the same posting and overwrite each other's reasoning.
+   Name the file the worktree expects, so the candidate can create it next time.
+3. Neither exists: **stop.** Report which paths were checked and what to create.
+   This is a missing input, not an uncertainty to work around, and generating a
+   resume without a posting is not possible. It is the one condition that halts a
+   run.
+
+Never read a `jd-*.txt` belonging to another worktree, even when the expected one
+is missing. That is another session's posting, and it is probably mid-run.
 
 ## Writing to the data files
 
@@ -203,7 +222,7 @@ report.
 
 # PHASE 1: JOB DESCRIPTION ANALYSIS
 
-Parse `input/jd.txt` and structure:
+Parse the job description resolved in Phase 0 and structure:
 
 - Company name. If genuinely absent, infer from domain or email clues, otherwise
   use "the target company" and flag it in the Phase 7 report. Do not stop to ask.
@@ -700,6 +719,7 @@ Then report in chat, not in the files:
 ## OPTIMIZATION SUMMARY
 
 **Target**: [Company] - [Position] - [Level]
+**JD read from**: [input/jd-{worktree}.txt, or "input/jd.txt (fallback: input/jd-{worktree}.txt not found)"]
 **Tracks used**: [primary track, then any secondary, or "none matched, used master-resume.md"]
 
 ### Coverage
@@ -805,7 +825,10 @@ Return to Step 1 after each batch until the user is done.
 | A track file contradicts `input/master-resume.md` | Facts follow the master. Log the drift |
 | The candidate clearly does not qualify | Still generate, honestly and without inflation. Log why in the gaps file. Never refuse and never ask |
 | `data/` does not exist | Create it. Never skip a log write because the directory is missing |
-| Two sessions running at once | Both append to their own `{worktree}`-named files. Read before appending |
+| Sessions running at once | Each reads its own `input/jd-{worktree}.txt` and appends to its own `{worktree}`-named data files. Read before appending |
+| `input/jd-{worktree}.txt` missing, `input/jd.txt` present | Use the fallback, name the expected path in the report, warn that it is unsafe with concurrent sessions |
+| Both JD paths missing | Stop and report the paths checked. The only condition that halts a run |
+| Only another worktree's `jd-*.txt` exists | Do not read it. Treat as "both missing" |
 | JD requires a certification the candidate lacks | Omit it. Report as an unmet requirement. Never generate one |
 | Master resume records a credential but not its details | Omit the entry, report exactly what to add to close it |
 | Missing metric | Honest qualitative phrasing or a clearly-scoped estimate. Never a fabricated number |
@@ -831,7 +854,9 @@ Return to Step 1 after each batch until the user is done.
   track file, rather than asking about them again next run
 
 **Never block on a question**
-- Produce the resume and cover letter on every run, whatever the JD asks for
+- Produce the resume and cover letter on every run, whatever the JD asks for.
+  The sole exception is a missing job description, which is a missing input
+  rather than an uncertainty (Phase 0)
 - Uncertainty goes to `data/master-resume-gaps-{worktree}.md`, not to the user
   mid-run
 - Newly detected skills go to `data/new-skills-{worktree}.md`, not to a prompt
