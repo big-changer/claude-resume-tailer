@@ -3,8 +3,8 @@
     {
       "id": "resume-jd-optimizer",
       "name": "Resume-JD Optimizer",
-      "version": "1.0.0",
-      "description": "All-in-one resume optimization skill combining job description analysis, master resume parsing, ATS optimization, and strategic keyword emphasis.",
+      "version": "3.0.0",
+      "description": "Generates a tailored two-page resume and matching cover letter from a job description and a master resume, in a plain human-written style, enforced by blocking build gates.",
       "author": "Resume Generator Team",
       "license": "MIT",
       "tags": [
@@ -12,18 +12,17 @@
         "ats",
         "optimization",
         "job-matching",
-        "keyword-emphasis",
         "career"
       ],
       "keywords": [
         "Resume",
         "ATS Optimization",
         "Job Description",
+        "Cover Letter",
         "Career",
-        "Keyword Emphasis",
         "Professional Development"
       ],
-      "fileLocation": "resume-jd-optimizer.md",
+      "fileLocation": "resume-jd-optimizer/SKILL.md",
       "inputs": [
         {
           "name": "jd_path",
@@ -40,79 +39,118 @@
           "default": "input/master-resume.md"
         },
         {
+          "name": "track_resume_paths",
+          "description": "Per-track master resumes, selected from the JD's role responsibilities. Skills come from these; facts always come from input/master-resume.md (default: input/master-resume-{track}.md)",
+          "type": "file_path",
+          "required": false,
+          "default": "input/master-resume-{track}.md"
+        },
+        {
           "name": "output_dir",
-          "description": "Output directory for optimized resume (default: output_{YYYY-MM-DD})",
+          "description": "Output directory for the generated files (default: output/{YYYYMMDD})",
           "type": "string",
           "required": false,
-          "default": "output_{YYYY-MM-DD}"
+          "default": "output/{YYYYMMDD}"
         }
       ],
       "outputs": [
         {
-          "name": "optimized_resume",
-          "description": "Markdown resume file with ATS optimization and keyword emphasis",
+          "name": "tailored_resume",
+          "description": "Markdown resume conforming to the output contract in scripts/convert_resume.py",
           "type": "markdown",
-          "filename_pattern": "{company}-{position}-{name}-emphasize.md"
+          "filename_pattern": "{company}-{position}-{name}.md"
+        },
+        {
+          "name": "cover_letter",
+          "description": "Matching cover letter, generated from the finished resume",
+          "type": "markdown",
+          "filename_pattern": "{company}-{position}-{name}-cover.md"
         },
         {
           "name": "optimization_summary",
-          "description": "Detailed report of changes, gaps, and optimization details",
+          "description": "Chat-only report: tracks selected, keyword coverage, requirements deliberately not claimed, entries omitted for missing detail, and the data/ files written",
           "type": "text"
+        },
+        {
+          "name": "new_skills_log",
+          "description": "JD skills with no match in any master resume, grouped by track and appended for later review. Written instead of asking the user",
+          "type": "markdown",
+          "filename_pattern": "data/new-skills-{worktree}.md"
+        },
+        {
+          "name": "master_resume_gaps_log",
+          "description": "Anything that made the run weaker than it should have been: unmet must-haves, missing metrics, thin track files, drift between a track file and the master. Grouped by track and appended",
+          "type": "markdown",
+          "filename_pattern": "data/master-resume-gaps-{worktree}.md"
         }
       ],
       "features": [
         "Job Description Analysis",
         "Resume Parsing & Restructuring",
-        "Skill Gap Analysis",
-        "ATS Optimization",
-        "Keyword Emphasis (Phase 5.5)",
-        "Achievement Quantification",
-        "Certificate Generation",
-        "Role-Specific Optimization",
-        "Quality Assurance"
+        "Skill Gap Analysis with Human Confirmation",
+        "ATS Keyword Coverage",
+        "Cover Letter Generation",
+        "Master Resume Sync",
+        "Blocking Quality Gates (scripts/verify_resume.py)",
+        "Post-Delivery Question Answering",
+        "Role-Responsibility Track Selection",
+        "Autonomous Gap Logging"
       ],
       "phases": [
+        "Phase 0: Run Context",
         "Phase 1: Job Description Analysis",
+        "Phase 1.2: Track Selection",
+        "Phase 1.5: New Skill Detection & Logging",
         "Phase 2: Master Resume Parsing",
         "Phase 3: Gap Analysis & Matching",
         "Phase 4: Certification Handling",
         "Phase 5: Content Generation",
-        "Phase 5.5: ATS-Critical Keyword Emphasis ⭐",
-        "Phase 6: Quality Assurance",
-        "Phase 7: Output & Handoff"
+        "Phase 5.8: Cover Letter",
+        "Phase 6: Verification",
+        "Phase 7: Output & Handoff",
+        "Phase 8: Post-Delivery Questions"
       ],
       "roles": [
-        "Frontend Engineer",
-        "Backend Engineer",
-        "DevOps/SRE Engineer",
-        "AI/LLM Engineer",
+        "Full Stack Engineer",
+        "Data Engineer",
+        "Cloud / DevOps Engineer",
+        "Security Engineer",
+        "Enterprise Platform Engineer",
+        "IT Operations Engineer",
         "Mobile Engineer",
-        "Full-Stack Engineer"
+        "AI Engineer",
+        "Product Manager",
+        "Technical Writer",
+        "Blockchain Engineer (integration only)"
       ],
       "success_metrics": {
-        "ats_keywords": "15-25 keywords from JD naturally integrated",
-        "achievement_quantification": "80%+ of bullets quantified",
-        "keyword_placement": "Top keywords in Summary + Skills + Bullets",
-        "requirement_coverage": "All MUST-HAVE JD requirements addressed",
-        "factual_accuracy": "100% accuracy maintained",
-        "visual_balance": "Professional appearance (not overdone)",
-        "production_ready": "Ready for actual job submission"
+        "length": "Two pages, roughly 900 words, never above 1050",
+        "gates": "All five gates in scripts/verify_resume.py pass without --no-verify",
+        "ats_keywords": "Every must-have JD keyword present, none more than three times",
+        "requirement_coverage": "All MUST-HAVE JD requirements addressed or explicitly reported as unmet",
+        "factual_accuracy": "Every company, date, location and credential verified against the master resume",
+        "emphasis": "Zero inline bold outside technical-skill labels",
+        "production_ready": "Ready for actual job submission with no manual cleanup"
       },
       "constraints": [
-        "Never fabricate experience or dates",
-        "Always maintain 100% factual integrity",
-        "Mark all AI-generated content clearly",
-        "Never claim skills without confirmation",
-        "Avoid keyword stuffing or manipulation",
-        "Never oversell achievements",
-        "Keep career narrative authentic"
+        "Never fabricate experience, dates, job titles, certifications or metrics",
+        "Never generate a certification, and never emit an AI-generated marker",
+        "Never leave a bracketed placeholder in the deliverable; omit the entry and report the gap in chat",
+        "Never claim a JD-only skill; detecting one and logging it is not evidence the candidate has it",
+        "Never stop to ask the user mid-run; log the uncertainty to data/ and finish the deliverable",
+        "Never source a smart-contract, protocol or audit role from master-resume-blockchain.md",
+        "Facts always come from input/master-resume.md, never from a track file",
+        "No em dashes, arrows, emoji or AI-register phrasing",
+        "No inline bold outside technical-skill labels",
+        "Report unmet requirements every run rather than narrowing the keyword list until it scores 100%"
       ],
       "research_basis": {
         "ats_evolution": "Modern ATS use ML for contextual relevance scoring",
         "quantified_metrics": "Numbers parse as structured data and score higher",
         "keyword_strategy": "Natural integration (1-3x) works better than stuffing",
-        "keyword_emphasis": "Strategic bolding helps recruiters (doesn't affect ATS)",
-        "formatting": "Simple formatting (Arial, plain text) optimal for parsing",
+        "keyword_emphasis": "Bolding is invisible to ATS and costs human readability when overused, so it is not used",
+        "formatting": "Single serif typeface, greyscale, plain text, no tables or graphics, optimal for parsing",
+        "length": "Two pages is the practical ceiling for recruiter review at this experience level",
         "sources": [
           "Scale.jobs ATS Algorithms (2026)",
           "ATS Resume Optimization 2025 - TopResume",
@@ -121,16 +159,17 @@
         ]
       },
       "example_workflow": {
-        "step1": "Prepare input/jd.txt and input/master-resume.md",
-        "step2": "Run skill with provided files",
-        "step3": "Skill processes through 7 phases",
-        "step4": "Skill asks clarifying questions for gaps",
-        "step5": "Skill generates optimized resume with emphasis",
-        "step6": "Review output_{date}/{company}-{position}-{name}-emphasize.md",
-        "step7": "Convert to PDF and submit"
+        "step1": "Prepare input/jd.txt. The master resumes are already in place",
+        "step2": "Run the skill. It does not stop to ask anything",
+        "step3": "Skill picks the matching master-resume-{track}.md files from the JD's role responsibilities",
+        "step4": "Skill writes the resume and cover letter to output/{YYYYMMDD}/",
+        "step5": "Skill appends anything new or missing to data/new-skills-{worktree}.md and data/master-resume-gaps-{worktree}.md",
+        "step6": "Review the chat report, especially 'Not claimed' and 'Omitted for missing detail'",
+        "step7": "Run python scripts/convert_resume.py \"{YYYYMMDD}/{company}-{position}-{name}\"",
+        "step8": "At the weekend, work through the two data/ files and fold real skills into the master resumes"
       },
       "created_date": "2026-07-22",
-      "last_updated": "2026-07-22",
+      "last_updated": "2026-08-02",
       "status": "production",
       "compatibility": {
         "claude_versions": [
@@ -151,8 +190,8 @@
     "name": "resume-generator",
     "description": "Comprehensive resume optimization and generation toolkit",
     "url": "https://github.com/your-org/resume-generator",
-    "skills_directory": ".claude/skills_v2"
+    "skills_directory": ".claude/skills"
   },
-  "version": "1.0.0",
-  "last_updated": "2026-07-22"
+  "version": "2.0.0",
+  "last_updated": "2026-08-02"
 }
