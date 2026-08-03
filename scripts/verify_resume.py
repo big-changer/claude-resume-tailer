@@ -49,11 +49,13 @@ def master_resumes(directory: Path = MASTER_DIR) -> list[Path]:
         p for p in directory.glob(MASTER_GLOB) if p.name not in MASTER_EXCLUDE
     )
 
-# Budgets. The reference two-page resume this pipeline is modelled on runs about
-# 900 words; the cover-letter budget matches the 250-400 word rule in the skill.
+# Budgets. The reference resume this pipeline is modelled on runs about 900 words;
+# the cover-letter budget matches the 250-400 word rule in the skill. The page
+# budget is the looser of the two limits: the word budget is what normally binds,
+# so raising MAX_PAGES_RESUME on its own does not let a longer resume through.
 MAX_WORDS_RESUME = 1050
 MAX_WORDS_COVER = 430
-MAX_PAGES_RESUME = 2
+MAX_PAGES_RESUME = 4
 MAX_PAGES_COVER = 1
 
 
