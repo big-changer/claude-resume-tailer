@@ -10,22 +10,29 @@ Shareable Claude skills for the resume-generator project.
 
 **File**: `resume-jd-optimizer/SKILL.md`
 
-Reads a job description and the candidate's master resume, then writes a
-tailored two-page resume and a matching cover letter that read as if a person
-wrote them.
+Reads a job description and the candidate's per-track master resumes, then
+writes a tailored two-page resume and a matching cover letter that read as if a
+person wrote them.
+
+Invoked with a **run slug**, which namespaces the posting and the logs so two
+sessions can work different jobs in the same checkout:
+
+```
+/resume-jd-optimizer hiringcafe
+```
 
 **Input**
-- `input/jd-{worktree}.txt` - job description, one per worktree so concurrent
-  sessions each work their own posting. Falls back to `input/jd.txt`
-- `input/master-resume.md` - the source of truth for every fact
-- `input/master-resume-{track}.md` - per-track skill sources, selected from the
-  JD's role responsibilities
+- `input/jd-{slug}.txt` - job description, one per slug
+- `input/master-resume-{track}.md` - the only resume sources. Each is complete on
+  its own, skills and facts, and the tracks are selected from the JD's role
+  responsibilities. There is no combined `master-resume.md`
+- `input/master-resume-bone.md` is the anonymised sharing template, never a source
 
 **Output**
 - `output/{YYYYMMDD}/{company}-{position}-{name}.md`
 - `output/{YYYYMMDD}/{company}-{position}-{name}-cover.md`
-- `data/new-skills-{worktree}.md` - JD skills with no match in any master resume
-- `data/master-resume-gaps-{worktree}.md` - what would have made this run better
+- `data/{slug}/new-skills.md` - JD skills with no match in any track file
+- `data/{slug}/master-resume-gaps.md` - what would have made this run better
 - A chat-only report covering keyword coverage, requirements deliberately not
   claimed, and entries omitted for missing detail
 
@@ -33,24 +40,28 @@ wrote them.
 - Extracts requirements, keywords and the exact job title from the JD
 - Reads the JD's role responsibilities and selects the matching per-track master
   resumes, so a hybrid posting can draw on two or three at once
-- Parses the master resume for facts and the track files for skills, then scores
-  each role for relevance
+- Takes skills from every selected track and facts from the primary one, then
+  scores each role for relevance
 - Generates the summary, one technical-skills section, experience bullets,
   education and certifications against a two-page budget
 - Generates the cover letter from the finished resume, not from scratch
 - Answers follow-up screening questions after delivery
 
 **It never stops to ask.** The resume is produced on every run. Skills the JD
-names but the record cannot support are appended to `data/new-skills-{worktree}.md`,
-and anything that weakened the run goes to `data/master-resume-gaps-{worktree}.md`,
-both grouped by track for weekend review. The `{worktree}` suffix is the repo
-directory name, so two concurrent sessions do not collide.
+names but the record cannot support are appended to `data/{slug}/new-skills.md`,
+and anything that weakened the run goes to `data/{slug}/master-resume-gaps.md`,
+both grouped by track for weekend review. The slug comes from the invocation, so
+two concurrent sessions in one checkout do not collide.
+
+The one condition that halts a run is a missing `input/jd-{slug}.txt`. There is
+no `input/jd.txt` fallback, because sharing one posting between concurrent runs
+is the failure the slug exists to prevent.
 
 **What it deliberately does not do**
 - No keyword bolding. Bold is invisible to an ATS and 250 bold runs on a page
   cancel each other out for a human reader, so bold is reserved for structure.
 - No generated certifications, and no AI-generated markers. A credential the
-  master resume does not record is omitted and reported as a real gap.
+  track files do not record is omitted and reported as a real gap.
 - No bracketed placeholders in the deliverable. An entry missing its facts comes
   out of the resume and goes into the chat report instead.
 
@@ -64,7 +75,7 @@ The output is checked by `scripts/verify_resume.py`, and
 | Gate | Catches |
 |---|---|
 | human style | em dashes, arrows, emoji, AI-register phrasing, bracketed placeholders |
-| frozen facts | a company, date, location, school or contact value not found in the master resume |
+| frozen facts | a company, date, location, school or contact value not found in any `input/master-resume-*.md` track file |
 | headline | a headline that does not track the target job title, or is a multi-part title |
 | emphasis budget | inline bold anywhere except a technical-skill label |
 | structure & length | missing or forbidden sections, malformed entries, too many skill categories, skill labels over 26 chars, over 1050 words |
@@ -134,9 +145,8 @@ runs produce the same rhythm regardless of how the markdown was spaced.
 ## Usage
 
 ```bash
-# 1. Put the posting in input/jd-{worktree}.txt
-#    {worktree} is the repo directory name: basename $(git rev-parse --show-toplevel)
-# 2. Run the skill
+# 1. Put the posting in input/jd-{slug}.txt, e.g. input/jd-hiringcafe.txt
+# 2. Run the skill with that slug:  /resume-jd-optimizer hiringcafe
 # 3. Convert, which also converts the paired cover letter
 python scripts/convert_resume.py "20260801/accuris-sap-solution-architect-gafari-arowojebe"
 ```

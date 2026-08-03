@@ -3,8 +3,8 @@
     {
       "id": "resume-jd-optimizer",
       "name": "Resume-JD Optimizer",
-      "version": "3.0.0",
-      "description": "Generates a tailored two-page resume and matching cover letter from a job description and a master resume, in a plain human-written style, enforced by blocking build gates.",
+      "version": "3.1.0",
+      "description": "Generates a tailored two-page resume and matching cover letter from a job description and the candidate's per-track master resumes, in a plain human-written style, enforced by blocking build gates.",
       "author": "Resume Generator Team",
       "license": "MIT",
       "tags": [
@@ -25,22 +25,22 @@
       "fileLocation": "resume-jd-optimizer/SKILL.md",
       "inputs": [
         {
-          "name": "jd_path",
-          "description": "Path to the job description. Namespaced by worktree so concurrent sessions do not share one posting (default: input/jd-{worktree}.txt, falling back to input/jd.txt)",
-          "type": "file_path",
+          "name": "slug",
+          "description": "Run slug passed as the skill's argument, e.g. /resume-jd-optimizer hiringcafe. Namespaces the posting and the data logs so concurrent sessions in one checkout do not collide. Never derived from the directory, branch or worktree. If omitted and exactly one input/jd-*.txt exists, its slug is inferred and reported",
+          "type": "string",
           "required": false,
-          "default": "input/jd-{worktree}.txt"
+          "default": null
         },
         {
-          "name": "resume_path",
-          "description": "Path to master resume file (default: input/master-resume.md)",
+          "name": "jd_path",
+          "description": "Path to the job description, resolved from the slug. Missing is the only condition that halts a run; there is no input/jd.txt fallback",
           "type": "file_path",
           "required": false,
-          "default": "input/master-resume.md"
+          "default": "input/jd-{slug}.txt"
         },
         {
           "name": "track_resume_paths",
-          "description": "Per-track master resumes, selected from the JD's role responsibilities. Skills come from these; facts always come from input/master-resume.md (default: input/master-resume-{track}.md)",
+          "description": "Per-track master resumes, selected from the JD's role responsibilities. These are the only resume sources: each file is complete on its own, carrying skills in Sections 1 and 2 and every fact in Sections 3 to 15. Skills come from every selected track, unioned; facts come from the primary track alone. There is no combined input/master-resume.md. input/master-resume-bone.md is the anonymised sharing template and is never a source",
           "type": "file_path",
           "required": false,
           "default": "input/master-resume-{track}.md"
@@ -73,15 +73,15 @@
         },
         {
           "name": "new_skills_log",
-          "description": "JD skills with no match in any master resume, grouped by track and appended for later review. Written instead of asking the user",
+          "description": "JD skills with no match in any track file, grouped by track and appended for later review. Written instead of asking the user",
           "type": "markdown",
-          "filename_pattern": "data/new-skills-{worktree}.md"
+          "filename_pattern": "data/{slug}/new-skills.md"
         },
         {
           "name": "master_resume_gaps_log",
-          "description": "Anything that made the run weaker than it should have been: unmet must-haves, missing metrics, thin track files, drift between a track file and the master. Grouped by track and appended",
+          "description": "Anything that made the run weaker than it should have been: unmet must-haves, missing metrics, thin track files, drift between two track files. Grouped by track and appended",
           "type": "markdown",
-          "filename_pattern": "data/master-resume-gaps-{worktree}.md"
+          "filename_pattern": "data/{slug}/master-resume-gaps.md"
         }
       ],
       "features": [
@@ -128,7 +128,7 @@
         "gates": "All five gates in scripts/verify_resume.py pass without --no-verify",
         "ats_keywords": "Every must-have JD keyword present, none more than three times",
         "requirement_coverage": "All MUST-HAVE JD requirements addressed or explicitly reported as unmet",
-        "factual_accuracy": "Every company, date, location and credential verified against the master resume",
+        "factual_accuracy": "Every company, date, location and credential verified against the input/master-resume-*.md track files",
         "emphasis": "Zero inline bold outside technical-skill labels",
         "production_ready": "Ready for actual job submission with no manual cleanup"
       },
@@ -137,13 +137,15 @@
         "Never generate a certification, and never emit an AI-generated marker",
         "Never leave a bracketed placeholder in the deliverable; omit the entry and report the gap in chat",
         "Never claim a JD-only skill; detecting one and logging it is not evidence the candidate has it",
-        "Never stop to ask the user mid-run; log the uncertainty to data/ and finish the deliverable",
+        "Never stop to ask the user mid-run; log the uncertainty to data/{slug}/ and finish the deliverable",
         "Never source a smart-contract, protocol or audit role from master-resume-blockchain.md",
-        "Facts always come from input/master-resume.md, never from a track file",
+        "Never read input/master-resume-bone.md; it is the anonymised sharing template",
+        "Facts always come from the primary track file alone, never merged across the selected tracks",
+        "A fact the user volunteers is written to every input/master-resume-*.md file that carries that section, never to just one",
         "No em dashes, arrows, emoji or AI-register phrasing",
         "No inline bold outside technical-skill labels",
         "Report unmet requirements every run rather than narrowing the keyword list until it scores 100%",
-        "Never read another worktree's jd-*.txt, even when the expected one is missing"
+        "Never read another slug's jd-*.txt, even when the expected one is missing"
       ],
       "research_basis": {
         "ats_evolution": "Modern ATS use ML for contextual relevance scoring",
@@ -160,17 +162,17 @@
         ]
       },
       "example_workflow": {
-        "step1": "Put the posting in input/jd-{worktree}.txt, where {worktree} is the repo directory name. The master resumes are already in place",
-        "step2": "Run the skill. It does not stop to ask anything",
-        "step3": "Skill picks the matching master-resume-{track}.md files from the JD's role responsibilities",
+        "step1": "Pick a run slug and put the posting in input/jd-{slug}.txt. The track resumes are already in place",
+        "step2": "Run the skill with that slug, e.g. /resume-jd-optimizer hiringcafe. It does not stop to ask anything",
+        "step3": "Skill picks the matching master-resume-{track}.md files from the JD's role responsibilities, ranks them, and takes every fact from the primary",
         "step4": "Skill writes the resume and cover letter to output/{YYYYMMDD}/",
-        "step5": "Skill appends anything new or missing to data/new-skills-{worktree}.md and data/master-resume-gaps-{worktree}.md",
+        "step5": "Skill appends anything new or missing to data/{slug}/new-skills.md and data/{slug}/master-resume-gaps.md",
         "step6": "Review the chat report, especially 'Not claimed' and 'Omitted for missing detail'",
         "step7": "Run python scripts/convert_resume.py \"{YYYYMMDD}/{company}-{position}-{name}\"",
-        "step8": "At the weekend, work through the two data/ files and fold real skills into the master resumes"
+        "step8": "At the weekend, work through the two data/{slug}/ files and fold real skills into the track resumes"
       },
       "created_date": "2026-07-22",
-      "last_updated": "2026-08-02",
+      "last_updated": "2026-08-03",
       "status": "production",
       "compatibility": {
         "claude_versions": [

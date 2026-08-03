@@ -69,8 +69,8 @@ your-project/
 │       ├── manifest.json (metadata)
 │       └── SHARING-GUIDE.md (this guide)
 ├── input/ (create this directory)
-│   ├── jd.txt (job description, or jd-{worktree}.txt per worktree)
-│   └── master-resume.md (your resume)
+│   ├── jd-{slug}.txt (job description, one per run slug)
+│   └── master-resume-{track}.md (your resume, one file per kind of role)
 └── output_YYYYMMDD/ (created automatically)
     └── {company}-{position}-{name}-emphasize.md (optimized resume)
 ```
@@ -78,10 +78,13 @@ your-project/
 ### Step 3: Prepare Input Files
 ```
 1. Create input/ directory in your project
-2. Add your job description as input/jd.txt
-   (or input/jd-{worktree}.txt if you run several worktrees at once;
-    {worktree} is the repo directory name, and the skill prefers it)
-3. Add your master resume as input/master-resume.md
+2. Pick a run slug for this posting, e.g. "hiringcafe", and add the job
+   description as input/jd-hiringcafe.txt. Then invoke the skill with that
+   slug. Two sessions with two slugs can run at once in one checkout
+3. Add your master resumes as input/master-resume-{track}.md, one per kind of
+   role you apply for. Each file must be complete on its own: skills in
+   Sections 1 and 2, and every fact in Sections 3 to 15. There is no combined
+   master-resume.md
 ```
 
 ### Step 4: Use the Skill
@@ -149,7 +152,7 @@ Option C: Programmatic Use
 **1. Prepare Files**
 ```
 # Their job description
-input/jd.txt
+input/jd-techcorp.txt
 ```
 Content:
 ```
@@ -160,8 +163,8 @@ Requirements: Go, PostgreSQL, Kubernetes, gRPC, microservices
 
 **2. Prepare Master Resume**
 ```
-# Their comprehensive resume
-input/master-resume.md
+# Their comprehensive resume, one file per track
+input/master-resume-fs.md
 ```
 Content:
 ```
@@ -207,10 +210,11 @@ Submit with confidence
 ## 📊 What Partners Can Expect
 
 ### Input Quality
-- `input/jd.txt`: Any job posting (copy-paste from LinkedIn, company site, etc.).
-  For concurrent sessions, use `input/jd-{worktree}.txt` instead: the skill checks
-  that first and falls back to `jd.txt`
-- `input/master-resume.md`: Comprehensive master resume with all skills and experience
+- `input/jd-{slug}.txt`: Any job posting (copy-paste from LinkedIn, company site,
+  etc.). The slug is passed when invoking the skill, so concurrent sessions each
+  read their own posting. There is no `jd.txt` fallback
+- `input/master-resume-{track}.md`: One comprehensive resume per kind of role,
+  each complete on its own
 
 ### Output Quality
 - **ATS Coverage**: 15-25 keywords from JD naturally distributed
@@ -277,8 +281,8 @@ their-project/
 │   ├── manifest.json ← Metadata
 │   └── SHARING-GUIDE.md ← This guide
 ├── input/ ← They create this
-│   ├── jd.txt ← Their job description (or jd-{worktree}.txt)
-│   └── master-resume.md ← Their master resume
+│   ├── jd-{slug}.txt ← Their job description, one per run slug
+│   └── master-resume-{track}.md ← Their master resumes, one per track
 └── output_{date}/ ← Created automatically
     └── optimized-resume.md ← Their output
 ```
@@ -291,7 +295,7 @@ their-project/
 
 | Issue | Solution |
 |-------|----------|
-| "Files not found" | Check input/ directory exists. The skill looks for input/jd-{worktree}.txt first, then input/jd.txt, and needs input/master-resume.md |
+| "Files not found" | Check input/ exists. The skill needs input/jd-{slug}.txt matching the slug it was invoked with, plus at least one input/master-resume-{track}.md |
 | "Skill not loading" | Copy entire IMPLEMENTATION PROMPT section, paste as system prompt in Claude |
 | "Output not generated" | Wait for all 7 phases to complete (5-10 minutes), check terminal for progress |
 | "Emphasis looks wrong" | Manually adjust bold formatting in output file before converting to PDF |

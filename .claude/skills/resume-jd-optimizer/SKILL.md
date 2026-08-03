@@ -1,20 +1,21 @@
 # Resume-JD Optimizer
 
-Turns a job description plus the candidate's master resume into a tailored,
+Turns a job description plus the candidate's per-track master resumes into a tailored,
 two-page resume and a matching cover letter, both of which read as if a person
 wrote them.
 
 ```
 Input:
-  - input/jd-{worktree}.txt         job description, one per worktree
-  - input/master-resume.md          the source of truth for every FACT
-  - input/master-resume-{track}.md  per-track skill sources, selected in Phase 1.2
+  - input/jd-{slug}.txt             job description, one per run slug
+  - input/master-resume-{track}.md  the only resume sources. Each is complete on
+                                    its own: skills AND facts. Selected in
+                                    Phase 1.2
 
 Output:
   - output/{YYYYMMDD}/{company}-{position}-{name}.md
   - output/{YYYYMMDD}/{company}-{position}-{name}-cover.md
-  - data/new-skills-{worktree}.md            appended, never asked about
-  - data/master-resume-gaps-{worktree}.md    appended, never asked about
+  - data/{slug}/new-skills.md            appended, never asked about
+  - data/{slug}/master-resume-gaps.md    appended, never asked about
 ```
 
 The markdown is then rendered by `scripts/convert_resume.py`, which refuses to
@@ -34,8 +35,8 @@ would previously have been a question:
 
 | File | Holds |
 |---|---|
-| `data/new-skills-{worktree}.md` | JD skills with no match in any master resume |
-| `data/master-resume-gaps-{worktree}.md` | anything that made this run harder or weaker than it should have been |
+| `data/{slug}/new-skills.md` | JD skills with no match in any track file |
+| `data/{slug}/master-resume-gaps.md` | anything that made this run harder or weaker than it should have been |
 
 The only interactive point left is the Phase 8 follow-up loop, which happens
 **after** both files are written and never blocks the deliverable.
@@ -163,50 +164,69 @@ no bullets, 250 to 400 words.
 
 # PHASE 0: RUN CONTEXT
 
-Several sessions can run against this repo at once, each in its own worktree and
-each working a different posting. So the job description this skill reads, and
-every file it writes outside `output/`, is namespaced by worktree.
+Several sessions can run against this repo at once, each working a different
+posting, and they all share one checkout. So the job description this skill
+reads, and every file it writes outside `output/`, is namespaced by a **run
+slug** that the user passes when invoking the skill.
 
-## Resolve the worktree slug, once, at the start of the run
+## Resolve the run slug, once, at the start of the run
+
+The slug is the argument the skill was invoked with:
 
 ```
-git rev-parse --show-toplevel
+/resume-jd-optimizer hiringcafe      ->  {slug} = hiringcafe
+/resume-jd-optimizer builtin         ->  {slug} = builtin
 ```
 
-Take the final path segment, lowercase it, and replace every run of
-non-alphanumeric characters with a single hyphen. That is `{worktree}`. A
-checkout at `f:\Work\Tech\resume-generator-v2-gafari` gives
-`resume-generator-v2-gafari`.
+Lowercase it and replace every run of non-alphanumeric characters with a single
+hyphen. **Do not derive it from the directory name, the git branch, the worktree
+or the JD contents.** Two sessions in the same checkout would resolve those
+identically, read the same posting, and overwrite each other's logs. The
+argument is the only source.
 
-If the command fails (not a git repo), use `local` and note it in the Phase 7
-report.
+If no argument was passed, list every `input/jd-*.txt` that exists, with Glob
+rather than `ls`:
+
+1. Exactly one: use its slug, and say so in the first line of the Phase 7
+   report.
+2. More than one: **stop.** Name the slugs found and ask which one this run is
+   for. Do not guess, and do not pick the newest file.
+3. None: **stop**, per "Locate the job description" below.
 
 ## Locate the job description
 
-The JD is **`input/jd-{worktree}.txt`**. Resolve it before Phase 1:
+The JD is **`input/jd-{slug}.txt`**. Resolve it before Phase 1:
 
-1. `input/jd-{worktree}.txt` exists: use it. This is the normal case.
-2. It does not exist, but `input/jd.txt` does: use `input/jd.txt`, and say so in
-   the first line of the Phase 7 report. This is the single-session fallback and
-   is **unsafe when sessions run concurrently**, because every worktree without
-   its own file will read the same posting and overwrite each other's reasoning.
-   Name the file the worktree expects, so the candidate can create it next time.
-3. Neither exists: **stop.** Report which paths were checked and what to create.
-   This is a missing input, not an uncertainty to work around, and generating a
-   resume without a posting is not possible. It is the one condition that halts a
-   run.
+1. It exists: use it. This is the normal case.
+2. It does not exist: **stop.** Report the path checked and what to create. This
+   is a missing input, not an uncertainty to work around, and generating a
+   resume without a posting is not possible. It is the one condition that halts
+   a run.
 
-Never read a `jd-*.txt` belonging to another worktree, even when the expected one
-is missing. That is another session's posting, and it is probably mid-run.
+Never read a `jd-*.txt` belonging to another slug, even when the expected one is
+missing. That is another session's posting, and it is probably mid-run. There is
+no `input/jd.txt` fallback: sharing one posting between concurrent runs is the
+exact failure the slug exists to prevent.
 
 ## Writing to the data files
 
-- `mkdir -p data` first. The directory may not exist on a fresh clone.
+Both logs live in a directory named for the slug:
+
+```
+data/{slug}/new-skills.md
+data/{slug}/master-resume-gaps.md
+```
+
+- **Do not `mkdir` the directory.** The Write tool creates missing parent
+  directories on its own, so shelling out for it only stops the run for a
+  permission prompt. The same goes for `ls` to see whether the files exist:
+  just read them and treat "not found" as "first run for this slug".
 - **Append. Never rewrite, never reorder, never delete an earlier run's
   entries.** These files are the candidate's weekend review queue.
 - Read the file before appending, so a skill already recorded for the same track
   is not logged twice. If it is already there, add the new JD to its
-  `Seen in:` line instead of creating a second entry.
+  `Seen in:` line instead of creating a second entry. On the first run for a
+  slug the read fails, which is expected: write the file fresh.
 - Every append opens with a run header so entries can be traced back:
 
 ```markdown
@@ -246,10 +266,14 @@ list.
 
 # PHASE 1.2: TRACK SELECTION
 
-`input/master-resume.md` is large and covers every direction the candidate could
-apply in. Reading all of it for a single JD buries the relevant material. The
-per-track files exist for this: each is the same record filtered to one kind of
-role.
+There is no combined master resume. `input/master-resume-{track}.md` is the
+whole record filtered to one kind of role, and each file is **complete on its
+own**: skills in Sections 1 and 2, and every fact in Sections 3 to 15. Track
+selection therefore decides both what the resume may claim and what it is
+verified against, which makes it the highest-leverage step in the run.
+
+`input/master-resume-bone.md` is not a track. It is the anonymised sharing
+template, full of bracketed placeholders. Never read it and never select it.
 
 ## Pick tracks from responsibilities, not from the job title
 
@@ -276,33 +300,37 @@ Rules:
 - **Most JDs select one or two tracks. Three is possible for a genuine hybrid.
   Four or more means the matching is too loose: keep the two strongest and log
   the rest as secondary in the Phase 7 report.**
-- Rank the selected tracks. The first is primary and drives the headline, the
-  summary, and the ordering of the Technical Skills categories. The others
-  contribute skills but do not reshape the document.
+- Rank the selected tracks. The first is **primary**. It drives the headline,
+  the summary, the ordering of the Technical Skills categories, and **every
+  fact in the output**. The others contribute skills only and do not reshape the
+  document.
 - `master-resume-blockchain.md` is an integration track. **Never select it for a
   smart-contract, protocol, or security-audit role.** It has no Solidity, no
   chains, no web3 tooling and no crypto domain content, by design. If the JD is
   one of those, select nothing from it, generate from the other tracks, and log
   the mismatch to the gaps file.
 - If no track fits (a mechanical, fire protection, process or structural
-  engineering posting, for example), fall back to `input/master-resume.md` alone
-  and log that the JD is outside every track.
+  engineering posting, for example), use `master-resume-fs.md` as the primary,
+  since it carries the general software engineering record, and log to the gaps
+  file that the JD is outside every track.
 
 ## What each file is authoritative for
 
 | Content | Read from |
 |---|---|
-| Skills, Sections 1 and 2 | the selected track files |
-| Every fact: companies, titles, dates, locations, education, contacts, certifications, Sections 3 to 15 | **`input/master-resume.md`, always** |
+| Skills, Sections 1 and 2 | **every selected track file**, unioned |
+| Every fact: companies, titles, dates, locations, education, contacts, certifications, Sections 3 to 15 | **the primary track file, always** |
 
-This split is not cosmetic. The frozen-facts gate validates the output against
-`input/master-resume.md` and nothing else, so a company, date, school or contact
-value taken from anywhere else will fail the build.
+One file for the facts, not a merge across the selected tracks. Section 3, the
+employment table, and Sections 8 to 11, the contact block, are identical in
+every track file today, so the primary is a safe single source for them.
+Sections 6 and 12, education and certificates, do vary between tracks: one may
+list coursework or a credential another omits. Take those from the primary too.
 
-The track files are filtered views of the master, so their skills are a subset
-of it. If you find a skill in a track file that is genuinely absent from
-`input/master-resume.md`, the files have drifted: use it, and log the drift to
-the gaps file so the master can be corrected.
+If a secondary track holds a fact the primary does not, **do not quietly import
+it.** The frozen-facts gate reads the union of all the track files, so it would
+pass, but the files disagreeing is drift. Use the primary's version, and log the
+disagreement to the gaps file so the source can be fixed once, everywhere.
 
 ---
 
@@ -310,36 +338,69 @@ the gaps file so the master can be corrected.
 
 Keyword-spotting against a JD is noisy: it over-triggers on generic words, on
 near-duplicates of skills already listed under another name, and on technologies
-the JD mentions in passing. Writing any of that into `input/master-resume.md`
-would fabricate a claim about the candidate.
+the JD mentions in passing. Writing any of that into a track file would
+fabricate a claim about the candidate.
 
 **This step used to stop and ask. It does not any more.** Detected skills are
-written to `data/new-skills-{worktree}.md` and the run continues. The candidate
+written to `data/{slug}/new-skills.md` and the run continues. The candidate
 reviews that file on their own schedule and decides what, if anything, belongs in
-a master resume. Nothing detected here is used in this run's output.
+a track file. Nothing detected here is used in this run's output.
+
+## How to search the track files
+
+This phase checks a lot of terms against a lot of files, and the obvious shell
+idiom for it is the wrong tool:
+
+```
+# Do not do this. A loop with $t in it cannot be pre-approved, so it stops the
+# run for a confirmation on every batch of terms.
+for t in "Kafka" "Flink" "SLO"; do grep -ril "$t" master-resume-*.md; done
+```
+
+Use **one Grep call with a regex alternation** instead. It reads every file
+once, returns which term matched where, needs no approval, and is faster:
+
+```
+pattern: (?i)\b(kafka|kinesis|flink|streaming|alerting|on-call|slo)\b
+glob:    input/master-resume-*.md
+output:  content, with -n
+```
+
+Batch 10 to 20 terms per call. Escape regex metacharacters in a term (`C++`
+becomes `c\+\+`, `.NET` becomes `\.net`). Read files with the Read tool, not
+`cat` or `head`, and find them with Glob, not `ls`.
+
+**`python scripts/verify_resume.py` in Phase 6 is the only shell command this
+skill runs.** Everything else is a Read, Glob, Grep or Write. If you find
+yourself reaching for the shell anywhere else in the run, there is a tool that
+does it without stopping to ask.
 
 ## Step 1: build the list
 
 1. Take the JD's key technologies and must-have / nice-to-have skills.
 2. Normalise both those and Section 1 of **every track file selected in Phase
-   1.2**, plus Section 1 of `input/master-resume.md`, case-insensitively,
-   collapsing well-known aliases (".NET" / ".NET Core" / "dotnet", "JavaScript" /
-   "JS", "Postgres" / "PostgreSQL"). An alias is not a new skill.
+   1.2**, case-insensitively, collapsing well-known aliases (".NET" / ".NET
+   Core" / "dotnet", "JavaScript" / "JS", "Postgres" / "PostgreSQL"). An alias is
+   not a new skill.
 3. Drop generic non-skill noise: "software", "programming", "experience",
    "team player", "communication skills".
-4. Classify each surviving term:
-   - **Evidenced elsewhere in the master resume but not itemised in Section 1**:
-     an itemisation gap. Usable this run, still worth logging.
-   - **In `input/master-resume.md` but missing from the selected track file**: a
-     filtering gap. Usable this run. Log it so the track file can be corrected.
-   - **Not evidenced anywhere**: a genuinely new claim. **Not usable this run.**
+4. Classify each surviving term. Where the first two need checking beyond the
+   selected tracks, search the other `input/master-resume-*.md` files, ignoring
+   any hit in `master-resume-bone.md`:
+   - **Evidenced in a selected track's Sections 3 to 15 but not itemised in its
+     Section 1**: an itemisation gap. Usable this run, still worth logging.
+   - **Absent from every selected track but present in an unselected one**: a
+     filtering gap. The candidate does have it, so it is usable this run. Log it
+     so the selected track can be corrected.
+   - **Not evidenced in any track file**: a genuinely new claim. **Not usable
+     this run.**
 5. Rank must-haves first, then nice-to-haves, ties broken by JD emphasis.
 
 If nothing survives, write nothing and go to Phase 2.
 
 ## Step 2: write the entries
 
-Append to `data/new-skills-{worktree}.md` under the run header, grouped by the
+Append to `data/{slug}/new-skills.md` under the run header, grouped by the
 track the skill would belong to. Choose the track from the skill's subject
 matter, not from which track happened to be selected this run: a Kubernetes skill
 is logged under Cloud / DevOps Engineer even on a JD that selected only Full
@@ -354,7 +415,7 @@ candidate can decide without reopening the JD:
 ### Enterprise Platform Engineer
 
 - **SAP BTP Integration Suite** - must-have, JD says "3+ years hands-on with BTP
-  Integration Suite". Status: not evidenced anywhere in the master resumes.
+  Integration Suite". Status: not evidenced in any track file.
   Nearest recorded: SAP CPI, SAP PI/PO. Seen in: Accuris SAP Solution Architect.
 - **CDS views** - nice-to-have. Status: evidenced in the Section 5 project text
   but not itemised in Section 1. Nearest recorded: ABAP, HANA modelling.
@@ -363,7 +424,7 @@ candidate can decide without reopening the JD:
 ### Cloud / DevOps Engineer
 
 - **Azure DevOps release gates** - nice-to-have. Status: filtering gap, present
-  in master-resume.md but absent from master-resume-devops.md.
+  in master-resume-fs.md but absent from master-resume-devops.md.
   Seen in: Accuris SAP Solution Architect.
 ```
 
@@ -373,27 +434,32 @@ recorded, and the JD it was seen in.
 
 ## Step 3: keep it out of this run's output
 
-- A skill logged as **not evidenced anywhere** is a missing skill for Phase 3.
-  Bridge to an adjacent recorded skill or omit it. **Never put it in the resume
-  on the strength of having logged it.** Logging is a note to the candidate, not
-  a confirmation.
+- A skill logged as **not evidenced in any track file** is a missing skill for
+  Phase 3. Bridge to an adjacent recorded skill or omit it. **Never put it in the
+  resume on the strength of having logged it.** Logging is a note to the
+  candidate, not a confirmation.
 - Itemisation gaps and filtering gaps are already true of the candidate, so they
   are usable in the output as normal.
-- Do not edit `input/master-resume.md` or any track file to add a detected skill.
-  That decision is the candidate's, and they make it against the file, not
-  mid-run.
+- Do not edit any track file to add a detected skill. That decision is the
+  candidate's, and they make it against the file, not mid-run.
 
 ---
 
 # PHASE 2: MASTER RESUME PARSING
 
-From `input/master-resume.md`, extract the facts: name, email, phone, location,
-LinkedIn, GitHub, career history (company, title, dates, location, achievements,
-technologies), education, certifications, open source, behavioural section.
+From the **primary track file**, extract the facts: name, email, phone,
+location, LinkedIn, GitHub, career history (company, title, dates, location,
+achievements, technologies), education, certifications, open source, behavioural
+section.
 
 From **each track file selected in Phase 1.2**, extract Sections 1 and 2. Union
 the skills across the selected tracks and drop duplicates. Where two tracks word
 the same skill differently, keep the wording from the primary track.
+
+Where two selected tracks disagree on a **fact**, the primary wins and the
+disagreement goes to the gaps file. The track files are meant to hold one
+identical record of the candidate, so a genuine conflict is drift to fix at the
+source, never a choice to make silently mid-run.
 
 Score each role for relevance to the target position (90-100 high, 60-89 medium,
 0-59 low).
@@ -428,13 +494,13 @@ Classify every JD requirement as:
 
 **Nothing in this phase stops to ask.** Whatever the shortfall, make the best
 honest call available, produce the deliverable, and record the problem in
-`data/master-resume-gaps-{worktree}.md`.
+`data/{slug}/master-resume-gaps.md`.
 
-- **Missing critical skill with no trace in any master resume**: do not
+- **Missing critical skill with no trace in any track file**: do not
   fabricate. Omit it. If a closely adjacent skill exists (resume has Kubernetes,
   JD wants Helm), bridge it as a partial match.
 - **Missing metric**: never invent a number. Use honest qualitative phrasing, or
-  a conservative estimate only where the surrounding master-resume text implies a
+  a conservative estimate only where the surrounding track-file text implies a
   range. Flag any estimate in the report.
 - **Missing certification**: **omit it.** See Phase 4.
 - **The JD's core requirement is something the candidate simply does not have**:
@@ -444,7 +510,7 @@ honest call available, produce the deliverable, and record the problem in
 
 ## The gaps log
 
-`data/master-resume-gaps-{worktree}.md` answers one question for the candidate at
+`data/{slug}/master-resume-gaps.md` answers one question for the candidate at
 the weekend: *what would have made this run produce a better resume?* Append,
 grouped by track, under the standard run header. Log any of these:
 
@@ -454,9 +520,10 @@ grouped by track, under the standard run header. Log any of these:
 | Fewer than five quantified results available | Only 2 real metrics exist for this track. Bullets X and Y would carry numbers if the candidate supplied them. |
 | A recorded claim too thin to use | SAP certification recorded as held, but no name, module, date or ID, so the entry was omitted. |
 | A track file too thin for the JD it was selected for | master-resume-writer.md has no writing portfolio, so the JD's "please link samples" cannot be answered. |
-| Drift between a track file and the master | OpenAPI is in master-resume-writer.md but not in master-resume.md. |
+| Drift between two track files | OpenAPI is in master-resume-writer.md but not in master-resume-fs.md. Add it to both, or to neither. |
+| Two track files disagree on a fact | master-resume-ai.md lists coursework master-resume-fs.md does not. Used the primary; reconcile the two. |
 | A structural or positioning problem | JD wants 15+ years systems engineering; record supports ~9y7m software. Cannot be closed by wording. |
-| No track matched the JD | Fire protection engineering posting; generated from master-resume.md alone. |
+| No track matched the JD | Fire protection engineering posting; generated from master-resume-fs.md as the general fallback. |
 | Anything that forced a judgment call | Two employers plausible for this project; picked the later one on date overlap. |
 
 Write what would fix it, not just what was wrong. "Add the state and licence
@@ -464,7 +531,7 @@ number to Section 12" is useful; "PE licence incomplete" on its own is not.
 
 ## Track what you deliberately did not claim
 
-Keep a running list of JD keywords the master resumes cannot support. This list
+Keep a running list of JD keywords the track files cannot support. This list
 goes in the Phase 7 chat report and the gaps file, never in the resume. It
 matters: a resume that scores 100% against a keyword list the candidate cannot
 defend in a technical screen is worse than one that scores 80% honestly.
@@ -481,17 +548,17 @@ makes the document unsubmittable.
 
 The rule now:
 
-1. **Certification present and complete in the master resume**: include it, as
-   written there.
+1. **Certification present and complete in the primary track file**: include it,
+   as written there.
 2. **Present but incomplete** (issuer known, credential ID or dates missing):
    include only the parts that are recorded. "CompTIA Security+ (active)" is
    fine. Never pad it with a bracketed placeholder.
-3. **Not in the master resume at all, or recorded with no substantive detail**:
-   **omit the entry entirely** and report it in Phase 7 as a real, unmet
-   requirement, with the exact line the candidate should add to
-   `input/master-resume.md` to close it on future runs.
+3. **Not in the primary track file at all, or recorded with no substantive
+   detail**: **omit the entry entirely** and report it in Phase 7 as a real,
+   unmet requirement, with the exact line the candidate should add to Section 12
+   of each `input/master-resume-*.md` file to close it on future runs.
 
-Rule 3 applies even when the master resume's own notes ask for a bracketed
+Rule 3 applies even when a track file's own notes ask for a bracketed
 placeholder. Omission achieves what those notes want, which is preventing
 fabrication, without putting an unsubmittable placeholder in the deliverable.
 The gap is still surfaced, just in chat rather than in the PDF.
@@ -528,7 +595,7 @@ Structure: years and primary expertise, then the specific platform or domain
 overlap with this JD, then the delivery record that proves it. Lead with what
 this employer is hiring for, not with a generic self-description.
 
-No bold. No metrics that are not in the master resume.
+No bold. No metrics that are not in a selected track file.
 
 ## 5.2b Literal keyword coverage
 
@@ -555,7 +622,7 @@ So, for every must-have and every industry tag:
   `Vendor Management` beats `Vendor and SaaS Lifecycle`.
 - Say years of experience **in digits**: "9+ years", never "nine years".
 
-Only claim what the master resume supports. This section is about wording what
+Only claim what the selected track files support. This section is about wording what
 is already true in the language the scanner expects, never about adding claims.
 
 ## 5.3 Technical Skills
@@ -581,22 +648,22 @@ skill lists is the defect this replaces.
 
 ## 5.4 Professional Experience
 
-- Include every role from the master resume. Reorder by relevance only if the
-  chronology allows it.
+- Include every role from the primary track file's Section 3. Reorder by
+  relevance only if the chronology allows it.
 - 4 to 6 bullets per role, most JD-relevant first.
-- Keep the real job titles from the master resume. Reframing what the work
+- Keep the real job titles from the primary track file. Reframing what the work
   emphasises is tailoring; renaming the role is fabrication.
-- Company, dates and location come from the master resume unchanged. The frozen-
-  facts gate verifies each one.
+- Company, dates and location come from the primary track file unchanged. The
+  frozen-facts gate verifies each one.
 
 Bullet shape: what you did, what you built or changed, and what happened as a
-result. Lead with a strong verb. Include a real number where the master resume
-has one, and do not manufacture one where it does not.
+result. Lead with a strong verb. Include a real number where a selected track
+file has one, and do not manufacture one where it does not.
 
 **Measurable results.** Screeners look for about five quantified outcomes, and
 the verifier reports how many the resume carries. Use every real number the
-master resume holds before falling back to qualitative phrasing. If the master
-resume genuinely has fewer than five, **do not close the gap by inventing one**.
+selected track files hold before falling back to qualitative phrasing. If they
+genuinely have fewer than five, **do not close the gap by inventing one**.
 Report the shortfall in Phase 7 and name the specific bullets that would carry a
 number, so the candidate can supply the real figures for future runs. A
 fabricated metric is the single easiest thing for an interviewer to disprove.
@@ -650,24 +717,40 @@ another company has failed this step.
 
 # MASTER RESUME SYNC
 
-`input/master-resume.md` is the single source of truth across runs. The track
-files are filtered views of it.
+The `input/master-resume-*.md` track files are the whole record. There is no
+combined master to update, so there is no single file to write to either: a
+change lands in every track file it belongs in, and the fact sections are meant
+to stay identical across all of them.
 
-**The skill no longer writes JD-detected skills into any master resume.** Those
-go to `data/new-skills-{worktree}.md` and the candidate applies them by hand.
+**The skill no longer writes JD-detected skills into any track file.** Those
+go to `data/{slug}/new-skills.md` and the candidate applies them by hand.
 A JD mentioning a skill is not evidence the candidate has it, and the confirming
 question that used to justify the write is gone.
 
 **Sync only when the user volunteers a real fact in conversation**: a real metric
-for a previously unquantified achievement, real experience not in the file, a
+for a previously unquantified achievement, real experience not in the files, a
 certification with issuer and dates, or a correction to a parsed fact. That is a
 statement by the candidate about themselves, which is a different thing from a
 keyword found in a posting.
 
-**How**: edit `input/master-resume.md` directly, matching its existing structure.
-Then mirror it into any track file the skill belongs to, so the views stay
-consistent with the master. Mention both edits in the Phase 7 report. If the user
-provides nothing, proceed without fabricating and without chasing them for it.
+**How**, matching each file's existing structure:
+
+| What the user gave you | Where it goes |
+|---|---|
+| A skill | Section 1 of every track it genuinely belongs to, usually one or two files |
+| A fact: employer, title, date, location, education, contact, certificate | The matching section of **every** `input/master-resume-*.md` file |
+
+Never `master-resume-bone.md`. It is the anonymised sharing template and holds
+no real data.
+
+Writing a fact to only the primary track is the failure mode to avoid here. The
+frozen-facts gate reads the union of all the track files, so the half-applied
+edit passes the gate on this run and leaves the files disagreeing for every run
+after it. Sections 3 and 8 to 11 are identical across the tracks today; keep
+them that way.
+
+List every file touched in the Phase 7 report. If the user provides nothing,
+proceed without fabricating and without chasing them for it.
 
 ---
 
@@ -685,7 +768,7 @@ Five gates, all blocking:
 | Gate | Catches |
 |---|---|
 | human style | em dashes, arrows, emoji, AI phrasing, bracketed placeholders |
-| frozen facts | a company, date, location, school or contact value not found in the master resume |
+| frozen facts | a company, date, location, school or contact value not found in any `input/master-resume-*.md` track file |
 | headline | a headline that does not track `target-role`, or is a multi-part title |
 | emphasis budget | inline bold anywhere except a skill label |
 | structure & length | missing or forbidden sections, malformed entries, too many skill categories, skill labels over 26 chars, over 1050 words |
@@ -699,7 +782,10 @@ Beyond the gates, check by reading:
 
 - Every must-have JD keyword appears at least once, and no keyword more than
   three times.
-- Every metric traces to the master resume.
+- Every metric traces to a selected track file.
+- Every fact traces to the **primary** track file specifically. The gate reads
+  the union of all of them, so it will not catch a fact borrowed from a track
+  this run did not select.
 - The most relevant experience is positioned first.
 - Read the summary and three bullets aloud. If any sounds like a press release,
   rewrite it.
@@ -719,8 +805,9 @@ Then report in chat, not in the files:
 ## OPTIMIZATION SUMMARY
 
 **Target**: [Company] - [Position] - [Level]
-**JD read from**: [input/jd-{worktree}.txt, or "input/jd.txt (fallback: input/jd-{worktree}.txt not found)"]
-**Tracks used**: [primary track, then any secondary, or "none matched, used master-resume.md"]
+**Run slug**: [slug, and "(inferred: only one jd-*.txt present)" if it was not passed as an argument]
+**JD read from**: [input/jd-{slug}.txt]
+**Tracks used**: [primary track (facts source), then any secondary, or "none matched, used master-resume-fs.md as fallback"]
 
 ### Coverage
 - Must-have keywords covered: [X/Y]
@@ -728,20 +815,21 @@ Then report in chat, not in the files:
 - Resume length: [N] words, [N] pages
 
 ### Not claimed
-JD requirements with no support in the master resumes, deliberately left out:
+JD requirements with no support in any track file, deliberately left out:
 - [keyword] - [why, and what would close it]
 
 ### Omitted for missing detail
-Entries dropped because the master resume records the claim but not the facts:
+Entries dropped because a track file records the claim but not the facts:
 - [e.g. SAP certification: recorded as held, but no certification name, module,
   date or credential ID. Add those to Section 12 to include it next run.]
 
 ### Files written for weekend review
-- data/new-skills-[worktree].md: [N] skills across [N] tracks, or "nothing new"
-- data/master-resume-gaps-[worktree].md: [N] entries, or "no gaps"
+- data/[slug]/new-skills.md: [N] skills across [N] tracks, or "nothing new"
+- data/[slug]/master-resume-gaps.md: [N] entries, or "no gaps"
 
 ### Master resume updates
-- [Facts the user volunteered this run and where they were written, or "None"]
+- [Facts the user volunteered this run and every track file they were written
+  to, or "None"]
 
 ### Gaps to review
 - [Anything the candidate should verify before submitting]
@@ -760,7 +848,7 @@ Resume and cover letter are ready.
 Before submitting:
 1. Verify every achievement and date reads true to you.
 2. Read the cover letter aloud, and adjust the tone if it does not sound like you.
-3. Review any master-resume edits made this run.
+3. Review any track-file edits made this run.
 
 The two data files are for whenever you get to them, not for now.
 
@@ -794,8 +882,9 @@ If the user indicates they are done, stop. Do not ask again this session.
 
 ## Step 2: answer
 
-- **Ground every claim in the generated resume** or `input/master-resume.md`.
-  Never introduce a fact, project or metric that is not in one of those two files.
+- **Ground every claim in the generated resume** or in the track files selected
+  this run. Never introduce a fact, project or metric that is not in one of
+  those.
 - **Write like the candidate.** 2 to 5 sentences for a typical screening
   question, longer only when the question asks for depth. No corporate filler, no
   restating the question, no bullet lists unless asked, no AI-disclaimer hedging.
@@ -805,7 +894,7 @@ If the user indicates they are done, stop. Do not ask again this session.
   availability, visa status, a fact simply not recorded), say so plainly and ask
   the user for the real answer.
 - If the user volunteers a real new fact while answering, offer to fold it into
-  `input/master-resume.md` per MASTER RESUME SYNC.
+  the track files per MASTER RESUME SYNC.
 
 ## Step 3: repeat
 
@@ -817,20 +906,22 @@ Return to Step 1 after each batch until the user is done.
 
 | Scenario | Action |
 |---|---|
-| JD names a tech skill not in any master resume | Log it to the new-skills file. Do not use it this run. Do not ask |
+| JD names a tech skill not in any track file | Log it to the new-skills file. Do not use it this run. Do not ask |
 | Skill missing after Phase 1.5 | Bridge via closest adjacent skill, else omit and flag in the report and gaps file |
-| JD spans several kinds of work | Select up to three tracks, rank them, let the primary drive the document |
-| No track matches the JD | Generate from `input/master-resume.md` alone and log it to the gaps file |
+| JD spans several kinds of work | Select up to three tracks, rank them, let the primary drive the document and supply every fact |
+| No track matches the JD | Use `master-resume-fs.md` as primary and log it to the gaps file |
 | Smart-contract, protocol or audit role | Never source from `master-resume-blockchain.md`. Log the mismatch |
-| A track file contradicts `input/master-resume.md` | Facts follow the master. Log the drift |
+| Two track files contradict each other on a fact | Facts follow the primary track. Log the drift |
+| A secondary track has a fact the primary lacks | Do not use it. The gate would pass it, which is exactly why the rule is here. Log the drift |
 | The candidate clearly does not qualify | Still generate, honestly and without inflation. Log why in the gaps file. Never refuse and never ask |
-| `data/` does not exist | Create it. Never skip a log write because the directory is missing |
-| Sessions running at once | Each reads its own `input/jd-{worktree}.txt` and appends to its own `{worktree}`-named data files. Read before appending |
-| `input/jd-{worktree}.txt` missing, `input/jd.txt` present | Use the fallback, name the expected path in the report, warn that it is unsafe with concurrent sessions |
-| Both JD paths missing | Stop and report the paths checked. The only condition that halts a run |
-| Only another worktree's `jd-*.txt` exists | Do not read it. Treat as "both missing" |
+| `data/{slug}/` does not exist | Create it. Never skip a log write because the directory is missing |
+| Sessions running at once | Each is invoked with its own slug, reads its own `input/jd-{slug}.txt`, and appends under its own `data/{slug}/`. Read before appending |
+| The skill was invoked with no slug | One `jd-*.txt` present: use its slug and say so in the report. Several: stop and ask which. None: stop |
+| `input/jd-{slug}.txt` missing | Stop and report the path checked. The only condition that halts a run |
+| Only another slug's `jd-*.txt` exists | Do not read it. Treat as missing |
+| Two sessions both need a MASTER RESUME SYNC write | The track files are shared, so apply one edit at a time and re-read the file before the second write |
 | JD requires a certification the candidate lacks | Omit it. Report as an unmet requirement. Never generate one |
-| Master resume records a credential but not its details | Omit the entry, report exactly what to add to close it |
+| A track file records a credential but not its details | Omit the entry, report exactly what to add to close it |
 | Missing metric | Honest qualitative phrasing or a clearly-scoped estimate. Never a fabricated number |
 | Resume runs over two pages | Cut the least JD-relevant skill categories first, then the weakest bullet in each role, then optional sections |
 | A gate fails | Fix the markdown. Do not use `--no-verify` |
@@ -850,16 +941,16 @@ Return to Step 1 after each batch until the user is done.
 - Never claim a JD-only skill. Detecting one and logging it is not evidence the
   candidate has it
 - Reorder, reframe and select from existing content, nothing more
-- Persist facts the user volunteers into `input/master-resume.md` and the matching
-  track file, rather than asking about them again next run
+- Persist facts the user volunteers into every `input/master-resume-*.md` file
+  that carries the section, rather than asking about them again next run
 
 **Never block on a question**
 - Produce the resume and cover letter on every run, whatever the JD asks for.
   The sole exception is a missing job description, which is a missing input
   rather than an uncertainty (Phase 0)
-- Uncertainty goes to `data/master-resume-gaps-{worktree}.md`, not to the user
+- Uncertainty goes to `data/{slug}/master-resume-gaps.md`, not to the user
   mid-run
-- Newly detected skills go to `data/new-skills-{worktree}.md`, not to a prompt
+- Newly detected skills go to `data/{slug}/new-skills.md`, not to a prompt
 - The only question in the workflow is Phase 8, after both files are delivered
 
 **Authenticity**
