@@ -7,8 +7,9 @@ ticks off itself does not stop the same defect recurring on the next run.
   Gate 1  human style    no AI-tell symbols, no AI-tell phrasing, no bracketed
                          placeholders left in the deliverable
   Gate 2  frozen facts   every company, date, location, school and contact value
-                         in the output is verified to exist in
-                         input/master-resume.md, which is the source of truth
+                         in the output is verified to exist in one of the
+                         input/master-resume-{track}.md files, which together are
+                         the source of truth
   Gate 3  headline       the role under the name tracks the target job title and
                          is not left over from the master resume
   Gate 4  emphasis       no inline bold outside the one structural position that
@@ -30,7 +31,23 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-MASTER_RESUME = ROOT / 'input' / 'master-resume.md'
+
+# There is no combined master resume. Each input/master-resume-{track}.md is the
+# whole record filtered to one kind of role, and each carries the same facts, so
+# the gate checks the union of them. master-resume-bone.md is excluded: it is the
+# anonymised sharing template, and its bracketed placeholders are not facts.
+MASTER_DIR = ROOT / 'input'
+MASTER_GLOB = 'master-resume-*.md'
+MASTER_EXCLUDE = {'master-resume-bone.md'}
+
+
+def master_resumes(directory: Path = MASTER_DIR) -> list[Path]:
+    """Every track file the frozen-facts gate treats as a source of truth."""
+    if not directory.is_dir():
+        return []
+    return sorted(
+        p for p in directory.glob(MASTER_GLOB) if p.name not in MASTER_EXCLUDE
+    )
 
 # Budgets. The reference two-page resume this pipeline is modelled on runs about
 # 900 words; the cover-letter budget matches the 250-400 word rule in the skill.
@@ -200,24 +217,38 @@ def _date_forms(token: str) -> list[str]:
     return [_norm(f'{mm}/{yyyy}'), _norm(f'{month} {yyyy}'), _norm(f'{month[:3]} {yyyy}')]
 
 
-# ── Gate 2 — frozen facts, verified against the master resume ──────────────
-def check_frozen(doc: Doc, master_path: Path = MASTER_RESUME) -> list[str]:
-    """Every hard fact in the output must already exist in the master resume.
+# ── Gate 2 — frozen facts, verified against the track files ────────────────
+def check_frozen(doc: Doc, sources: list[Path] | None = None) -> list[str]:
+    """Every hard fact in the output must already exist in a track file.
 
     Checked in that direction on purpose. Listing the facts here instead would
     mean a typo in this file could quietly become the new truth.
-    """
-    if not master_path.exists():
-        return [f'master resume not found at {master_path}, cannot verify frozen facts']
 
-    master = _norm(master_path.read_text(encoding='utf-8'))
+    The union of the track files is the widest thing that can be checked here,
+    because this gate does not know which tracks the run selected. Keeping the
+    output's facts to the *primary* track specifically is a rule in the skill,
+    not something this gate can enforce.
+    """
+    sources = master_resumes() if sources is None else sources
+    if not sources:
+        return [
+            f'no track files matching {MASTER_GLOB} in {MASTER_DIR}, '
+            f'cannot verify frozen facts'
+        ]
+
+    # Joined with a NUL, which _norm leaves alone, so one file's trailing text
+    # and the next one's leading text cannot form a spurious match across the
+    # boundary.
+    master = '\x00'.join(
+        _norm(p.read_text(encoding='utf-8')) for p in sources
+    )
     problems = []
 
     def require(value: str, what: str):
         if not value:
             return
         if not any(f in master for f in _date_forms(value)):
-            problems.append(f'{what} not found in master resume: {value!r}')
+            problems.append(f'{what} not found in any track file: {value!r}')
 
     # Contact block: only the machine-checkable values. A location is written
     # differently on a resume than in the master file ("North Platte, NE, USA
