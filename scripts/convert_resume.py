@@ -68,13 +68,14 @@ import sys
 from pathlib import Path
 
 from reportlab.lib.colors import HexColor
-from reportlab.lib.enums import TA_CENTER, TA_LEFT
+from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY, TA_LEFT
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import ParagraphStyle
+from reportlab.pdfbase.pdfmetrics import stringWidth
 from reportlab.lib.units import mm
 from reportlab.platypus import (
     BaseDocTemplate, CondPageBreak, Frame, HRFlowable, KeepTogether, PageTemplate,
-    Paragraph, Spacer,
+    Flowable, Paragraph, Spacer,
 )
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -142,21 +143,21 @@ SECTION_STYLE = ParagraphStyle(
     spaceBefore=4 * mm)
 BODY_STYLE = ParagraphStyle(
     'Body', fontName=ROMAN, fontSize=10, leading=13, textColor=BODY,
-    alignment=TA_LEFT, spaceAfter=1.2 * mm)
+    alignment=TA_JUSTIFY, spaceAfter=1.2 * mm)
 BULLET_STYLE = ParagraphStyle(
     'Bullet', fontName=ROMAN, fontSize=10, leading=12.8, textColor=BODY,
-    alignment=TA_LEFT, leftIndent=4 * mm, bulletIndent=0, spaceAfter=0.6 * mm,
+    alignment=TA_JUSTIFY, leftIndent=4 * mm, bulletIndent=0, spaceAfter=0.9 * mm,
     # Without this the bullet marker silently falls back to Helvetica, which
     # embeds a second font face for the sake of one hyphen.
     bulletFontName=ROMAN, bulletFontSize=10)
-# Job title and degree: bold, per the "bold your job titles" guidance.
+# Job or degree title, company or school, and dates/location are rendered by a
+# custom flowable so the entry uses the full frame width without introducing a
+# PDF table. Tables make some resume parsers read the right column out of order.
 ENTRY_TITLE_STYLE = ParagraphStyle(
     'EntryTitle', fontName=BOLD, fontSize=10.5, leading=13.2, textColor=BLACK,
     alignment=TA_LEFT)
-# Company or school, then dates and location on the same line. Bold on the
-# organisation only, so it reads as a name rather than as emphasis.
 ENTRY_SUB_STYLE = ParagraphStyle(
-    'EntrySub', fontName=ROMAN, fontSize=10, leading=13, textColor=GREY,
+    'EntrySub', fontName=ITALIC, fontSize=10, leading=13, textColor=GREY,
     alignment=TA_LEFT)
 SKILL_STYLE = ParagraphStyle(
     'Skill', fontName=ROMAN, fontSize=10, leading=13, textColor=BODY,
@@ -249,23 +250,80 @@ def section_heading(title: str) -> list:
     ]
 
 
+class EntryHeading(Flowable):
+    """Full-width job or education heading without a PDF table."""
+
+    def __init__(self, title: str, meta_parts: list[str], subtitle: str):
+        super().__init__()
+        self.title = title
+        self.meta = ' | '.join(p for p in meta_parts if p)
+        self.subtitle = subtitle
+        self._width = AVAIL
+        self._height = 0
+        self._title_lines: list[str] = []
+        self._subtitle_lines: list[str] = []
+
+    @staticmethod
+    def _fit_lines(text: str, font: str, size: float, max_width: float) -> list[str]:
+        words = text.split()
+        if not words:
+            return []
+        lines: list[str] = []
+        current = words[0]
+        for word in words[1:]:
+            candidate = f'{current} {word}'
+            if stringWidth(candidate, font, size) <= max_width:
+                current = candidate
+            else:
+                lines.append(current)
+                current = word
+        lines.append(current)
+        return lines
+
+    def wrap(self, availWidth, availHeight):
+        self._width = availWidth
+        title_size = ENTRY_TITLE_STYLE.fontSize
+        meta_size = ENTRY_SUB_STYLE.fontSize
+        meta_width = stringWidth(self.meta, ROMAN, meta_size) if self.meta else 0
+        gutter = 6 * mm if self.meta else 0
+        sub_width = max(availWidth - meta_width - gutter, availWidth * 0.45)
+
+        self._title_lines = self._fit_lines(self.title, BOLD, title_size, availWidth)
+        self._subtitle_lines = self._fit_lines(self.subtitle, ITALIC, meta_size, sub_width)
+        title_height = max(1, len(self._title_lines)) * ENTRY_TITLE_STYLE.leading
+        sub_height = max(1, len(self._subtitle_lines)) * ENTRY_SUB_STYLE.leading if self.subtitle or self.meta else 0
+        self._height = title_height + sub_height + 0.6 * mm
+        return availWidth, self._height
+
+    def draw(self):
+        c = self.canv
+        y = self._height - ENTRY_TITLE_STYLE.fontSize
+
+        c.setFillColor(BLACK)
+        c.setFont(BOLD, ENTRY_TITLE_STYLE.fontSize)
+        for line in self._title_lines:
+            c.drawString(0, y, line)
+            y -= ENTRY_TITLE_STYLE.leading
+
+        sub_y = y + 0.8 * mm
+        if self.subtitle:
+            c.setFillColor(GREY)
+            c.setFont(ITALIC, ENTRY_SUB_STYLE.fontSize)
+            for line in self._subtitle_lines:
+                c.drawString(0, sub_y, line)
+                sub_y -= ENTRY_SUB_STYLE.leading
+
+        if self.meta:
+            c.setFillColor(GREY)
+            c.setFont(ROMAN, ENTRY_SUB_STYLE.fontSize)
+            c.drawRightString(self._width, y + 0.8 * mm, self.meta)
+
+
 def entry_heading(title: str, meta_parts: list[str], subtitle: str) -> list:
-    """Job or degree, as two plain lines.
-
-    Line one is the bold title. Line two is the bold organisation followed by
-    dates and location. This used to be a two-column table with the dates
-    right-aligned, which looked tidier but is exactly the structure resume
-    parsers are warned about: a table can extract out of order or collapse into
-    one blob. Two ordinary paragraphs extract in reading order every time.
-    """
-    flowables = [Paragraph(inline(title), ENTRY_TITLE_STYLE)]
-
-    line = ' | '.join(p for p in [f'<b>{inline(subtitle)}</b>' if subtitle else ''] +
-                      [escape_xml(p) for p in meta_parts if p] if p)
-    if line:
-        flowables.append(Paragraph(line, ENTRY_SUB_STYLE))
-    flowables.append(Spacer(1, 1.4 * mm))
-    return [CondPageBreak(ENTRY_ORPHAN_GUARD), KeepTogether(flowables)]
+    """Job or degree heading spanning the full frame width."""
+    return [CondPageBreak(ENTRY_ORPHAN_GUARD), Spacer(1, 0.9 * mm), KeepTogether([
+        EntryHeading(title, meta_parts, subtitle),
+    ])]
 
 
 def skill_row(label: str, value: str) -> Paragraph:
