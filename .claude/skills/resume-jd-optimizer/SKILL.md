@@ -10,6 +10,8 @@ Input:
   - input/master-resume-{track}.md  the only resume sources. Each is complete on
                                     its own: skills AND facts. Selected in
                                     Phase 1.2
+  - input/quiz-{slug}.txt           optional. Screening and application questions,
+                                    read only in Phase 8, only if the user says yes
 
 Output:
   - output/{YYYYMMDD}/{company}-{position}-{name}.md
@@ -39,7 +41,9 @@ would previously have been a question:
 | `data/{slug}/master-resume-gaps.md` | anything that made this run harder or weaker than it should have been |
 
 The only interactive point left is the Phase 8 follow-up loop, which happens
-**after** both files are written and never blocks the deliverable.
+**after** both files are written and never blocks the deliverable. It is a
+single yes/no question, and the questions themselves are read from
+`input/quiz-{slug}.txt` rather than pasted into the terminal.
 
 ---
 
@@ -868,37 +872,131 @@ Then go straight to Phase 8, in the same turn.
 Help the candidate answer whatever else the posting or application form asks,
 grounded in the resume just generated.
 
-## Step 1: ask
+Application forms ask ten or twenty short-answer questions, and pasting that
+many into a terminal is miserable. So **the questions come from a file, not from
+chat.** The candidate writes them into `input/quiz-{slug}.txt` at any point,
+before or during the run, and this phase reads them.
 
-A single plain open question, not a multi-select, since the space is unbounded:
+## Step 1: ask, yes or no
+
+One short yes/no question. Nothing else, no multi-select, no request to paste
+anything:
 
 ```
-Any other questions from the posting or application - screening questions,
-"why do you want this role" prompts, short-answer fields? Paste them and I'll
-draft answers grounded in the resume above. If not, you're all set.
+Any additional questions to answer? (y/n)
 ```
 
-If the user indicates they are done, stop. Do not ask again this session.
+Then wait. Interpret the reply:
 
-## Step 2: answer
+| Reply | Do |
+|---|---|
+| `y`, `yes`, `yeah`, `yep`, `sure`, `ok`, or anything affirmative | Step 2 |
+| `n`, `no`, `nope`, `nah`, `done`, `all set`, or anything negative | Stop. Do not ask again this session |
+| The user pastes questions inline instead | Answer those, same format, same style. Do not demand the file |
 
-- **Ground every claim in the generated resume** or in the track files selected
-  this run. Never introduce a fact, project or metric that is not in one of
-  those.
-- **Write like the candidate.** 2 to 5 sentences for a typical screening
-  question, longer only when the question asks for depth. No corporate filler, no
-  restating the question, no bullet lists unless asked, no AI-disclaimer hedging.
-  Same house style: no em dashes, no AI register.
-- First person.
-- If a question cannot be answered without fabricating (salary expectations,
-  availability, visa status, a fact simply not recorded), say so plainly and ask
-  the user for the real answer.
-- If the user volunteers a real new fact while answering, offer to fold it into
-  the track files per MASTER RESUME SYNC.
+Ask this **once per turn at most.** Do not re-ask in the same message as the
+answers.
 
-## Step 3: repeat
+## Step 2: read the quiz file
 
-Return to Step 1 after each batch until the user is done.
+Read **`input/quiz-{slug}.txt`** with the Read tool. Same slug as the rest of
+the run. Never read another slug's quiz file.
+
+- **Not found, or empty**: say so in one line, give the exact path to create, and
+  stop. Do not fall back to `input/quiz.txt`, do not glob for other quiz files,
+  and do not ask the user to paste the questions instead.
+- **Found**: parse it into a numbered list of questions. The file is free-form
+  and hand-written, so accept whatever shape it is in: numbered lines, bullets,
+  blank-line separated blocks, one question per line. A question mark is a hint,
+  not a requirement, since plenty of form fields read "Tell us why you want this
+  role".
+- Treat a block of several sentences as **one** question when it is clearly one
+  form field with context around it. Splitting a single field into three answers
+  is worse than merging two.
+- If a line is obviously not a question (a heading, a URL, the company name),
+  skip it silently.
+- Re-read the file every time the user says yes. They may have added more
+  questions since the last batch. **Skip any question already answered this
+  session** and say how many were skipped.
+
+## Step 3: output format
+
+Emit the answers, in file order, in exactly this shape. Nothing before it but a
+one-line lead-in, nothing after it but the Step 1 question again:
+
+```
+1. Question, copied or trimmed to one line
+
+------------
+
+Answer text.
+
+------------
+
+2. Next question
+
+------------
+
+Answer text.
+
+------------
+```
+
+- The blank lines around each `------------` are **required.** Without them
+  markdown turns the dashed line into a heading and the question or answer gets
+  rendered as a title instead of text.
+- Twelve hyphens, on their own line, above and below every answer. Every answer
+  is fenced on both sides, including the last one.
+- The answer sits alone between the dashes: no label, no "Answer:", no word
+  count, no note about which resume bullet it came from. The block between two
+  dashed lines is what gets pasted into the form, so anything else in there is
+  something the candidate has to delete by hand.
+- Commentary, caveats and anything needing a real answer from the user go
+  **after the whole list**, never inside a fenced block.
+
+## Step 4: how the answers read
+
+These are pasted into an application form as the candidate's own words. A
+recruiter reads them next to the resume, so they must not sound like the resume.
+
+- **First person, plain spoken, written the way people actually talk.** Casual
+  contractions are right: "I've", "it's", "didn't", "pretty much", "a bunch of",
+  "honestly", "to be fair", "ended up". Ordinary US workplace slang is fine.
+- **Short.** 2 to 4 sentences for a typical screening question. One sentence for
+  a factual one. Longer only where the question explicitly asks for depth, and
+  even then keep it under a short paragraph.
+- **No resume voice.** Do not paste or paraphrase resume bullets, do not lead
+  with a strong verb and end with a percentage, do not stack three
+  accomplishments into one sentence. If a sentence would fit under Professional
+  Experience unchanged, rewrite it.
+- **No AI register**, same ban list as HOUSE STYLE, and no em dashes, arrows or
+  curly quotes. Also out: "I am excited to", "I am passionate about", "aligns
+  well with", "I would welcome the opportunity", opening by restating the
+  question, and closing with a summary of what was just said.
+- An imperfect sentence is fine. A little hedging is fine. It should read like
+  someone typed it into a form in two minutes, not like it was drafted.
+
+Ground rules that do not bend:
+
+- **Every claim traces to the generated resume or a track file selected this
+  run.** Casual wording is a style choice, not a licence to invent a project, a
+  number or a job.
+- If a question cannot be answered without fabricating, put the honest one-liner
+  in the fenced block, then say plainly after the list what you need from the
+  candidate. Typical cases: salary expectations, notice period, start date, visa
+  or work authorisation, sponsorship, willingness to relocate, references, a
+  degree GPA nobody recorded.
+- Never guess at anything legal or contractual. Authorisation, clearance and
+  sponsorship answers come from the candidate, always.
+- If the user volunteers a real new fact while working through these, offer to
+  fold it into the track files per MASTER RESUME SYNC.
+
+## Step 5: repeat
+
+After the list, ask Step 1's question again, verbatim, as the last line. Loop
+until the user says no. Nothing in this phase touches `output/`, the resume, the
+cover letter or the two `data/` files: those were finished in Phase 7 and stay
+finished.
 
 ---
 
@@ -930,7 +1028,13 @@ Return to Step 1 after each batch until the user is done.
 | Section 2 core skills are irrelevant to this JD | Prefer them within the eight-category budget, but do not blow the budget to include them all |
 | Company name unresolvable from the JD | Same placeholder in the cover letter recipient; flag it in the report |
 | User supplies a real fact mid-session | MASTER RESUME SYNC, then use it |
-| Extra question needs a fact nobody recorded | Say so and ask. Do not guess |
+| Extra question needs a fact nobody recorded | Honest one-liner in the fenced block, then say what you need. Do not guess |
+| User answers `y` at Phase 8 but `input/quiz-{slug}.txt` does not exist | Report the exact path to create, in one line, and stop. No fallback file, no glob, no "paste them instead" |
+| `input/quiz-{slug}.txt` exists but is empty | Same as missing |
+| Only another slug's `quiz-*.txt` exists | Do not read it. Treat as missing |
+| Quiz file has no numbering or punctuation | Parse it anyway: bullets, blank-line blocks or one per line all count. A question mark is not required |
+| User says `y` again after a batch | Re-read the file, answer only the questions not yet answered this session, and say how many were skipped |
+| User pastes questions in chat instead of using the file | Answer them in the same fenced format. Do not insist on the file |
 
 ---
 
@@ -951,7 +1055,8 @@ Return to Step 1 after each batch until the user is done.
 - Uncertainty goes to `data/{slug}/master-resume-gaps.md`, not to the user
   mid-run
 - Newly detected skills go to `data/{slug}/new-skills.md`, not to a prompt
-- The only question in the workflow is Phase 8, after both files are delivered
+- The only question in the workflow is Phase 8's yes/no, after both files are
+  delivered. The questions it answers come from `input/quiz-{slug}.txt`
 
 **Authenticity**
 - Do not distort an achievement to fit the JD
