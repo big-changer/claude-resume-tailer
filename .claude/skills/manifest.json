@@ -58,13 +58,13 @@
           "name": "tailored_resume",
           "description": "Markdown resume conforming to the output contract in scripts/convert_resume.py",
           "type": "markdown",
-          "filename_pattern": "{company}-{position}-{name}.md"
+          "filename_pattern": "output/{YYYYMMDD}/{company}-{position}/{name}.md"
         },
         {
           "name": "cover_letter",
           "description": "Matching cover letter, generated from the finished resume",
           "type": "markdown",
-          "filename_pattern": "{company}-{position}-{name}-cover.md"
+          "filename_pattern": "output/{YYYYMMDD}/{company}-{position}/{name}-cover-letter.md"
         },
         {
           "name": "optimization_summary",
@@ -165,10 +165,10 @@
         "step1": "Pick a run slug and put the posting in input/jd-{slug}.txt. The track resumes are already in place",
         "step2": "Run the skill with that slug, e.g. /resume-jd-optimizer hiringcafe. It does not stop to ask anything",
         "step3": "Skill picks the matching master-resume-{track}.md files from the JD's role responsibilities, ranks them, and takes every fact from the primary",
-        "step4": "Skill writes the resume and cover letter to output/{YYYYMMDD}/",
+        "step4": "Skill writes the resume and cover letter to output/{YYYYMMDD}/{company}-{position}/",
         "step5": "Skill appends anything new or missing to data/{slug}/new-skills.md and data/{slug}/master-resume-gaps.md",
         "step6": "Review the chat report, especially 'Not claimed' and 'Omitted for missing detail'",
-        "step7": "Run python scripts/convert_resume.py \"{YYYYMMDD}/{company}-{position}-{name}\"",
+        "step7": "Run python scripts/convert_resume.py \"{YYYYMMDD}/{company}-{position}/{name}\"",
         "step8": "At the weekend, work through the two data/{slug}/ files and fold real skills into the track resumes"
       },
       "created_date": "2026-07-22",

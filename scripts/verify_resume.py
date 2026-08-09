@@ -20,7 +20,7 @@ ticks off itself does not stop the same defect recurring on the next run.
 Used as a library by convert_resume.py (which refuses to write a PDF when any
 gate fails) and runnable on its own:
 
-    python scripts/verify_resume.py 20260801/accuris-sap-solution-architect
+    python scripts/verify_resume.py 20260801/accuris-sap-solution-architect/gafari-arowojebe
 """
 
 from __future__ import annotations
@@ -39,6 +39,22 @@ ROOT = Path(__file__).resolve().parent.parent
 MASTER_DIR = ROOT / 'input'
 MASTER_GLOB = 'master-resume-*.md'
 MASTER_EXCLUDE = {'master-resume-bone.md'}
+
+
+# Output layout: output/{YYYYMMDD}/{company}-{position}/{name}.md, with the
+# cover letter alongside it as {name}-cover-letter.md. The two share a directory
+# and all but one gate, so the suffix is the only thing that tells them apart.
+COVER_SUFFIX = '-cover-letter'
+
+
+def is_cover_file(path: Path) -> bool:
+    """True when the path names a cover letter rather than a resume."""
+    return path.stem.endswith(COVER_SUFFIX)
+
+
+def cover_path_for(resume_md: Path) -> Path:
+    """The cover letter that pairs with a resume markdown path."""
+    return resume_md.with_name(resume_md.stem + COVER_SUFFIX + resume_md.suffix)
 
 
 def master_resumes(directory: Path = MASTER_DIR) -> list[Path]:
@@ -489,7 +505,8 @@ def main() -> int:
 
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('resume_md', nargs='+',
-                    help='paths relative to output/, .md extension optional')
+                    help=("paths relative to output/, .md extension optional, e.g. "
+                          "'20260801/accuris-sap-solution-architect/gafari-arowojebe'"))
     args = ap.parse_args()
 
     failed = False
@@ -502,7 +519,7 @@ def main() -> int:
             print(f'not found: {path}')
             failed = True
             continue
-        gates = verify(path.read_text(encoding='utf-8'), is_cover=path.stem.endswith('-cover'))
+        gates = verify(path.read_text(encoding='utf-8'), is_cover=is_cover_file(path))
         if not report(path.name, gates):
             failed = True
         print()

@@ -55,6 +55,11 @@ The markdown this reads is not free-form. It must look like this:
 sits grey and right-aligned on the same line. `####` is the company or school
 on the line below. Inline `**bold**` is allowed only on a skill label.
 
+One application is one folder: the resume lives at
+output/{YYYYMMDD}/{company}-{position}/{name}.md and its cover letter sits beside
+it as {name}-cover-letter.md. Passing either the resume path or the folder
+converts both, and the PDFs are written next to their markdown.
+
 Every file is put through scripts/verify_resume.py first and no PDF is written
 if a gate fails. Pass --no-verify to render anyway for a quick look.
 """
@@ -461,17 +466,27 @@ def render(md_path: Path, title: str) -> tuple[bytes, int]:
 
 def resolve_md_path(raw_arg: str) -> Path:
     """Validate a CLI argument and resolve it to an absolute .md path inside output/."""
-    resume_md = Path(raw_arg)
-    if resume_md.is_absolute() or '..' in resume_md.parts:
+    arg_path = Path(raw_arg)
+    if arg_path.is_absolute() or '..' in arg_path.parts:
         raise ValueError('Pass only a relative path inside the output/ directory.')
-    if resume_md.suffix == '':
-        resume_md = resume_md.with_suffix('.md')
-    elif resume_md.suffix.lower() != '.md':
-        raise ValueError(f'File must be a .md file: {resume_md}')
 
-    md_path = (OUTPUT_DIR / resume_md).resolve()
+    md_path = (OUTPUT_DIR / arg_path).resolve()
+    if md_path.is_dir():
+        # An application folder, output/{YYYYMMDD}/{company}-{position}/. It holds
+        # one resume and its cover letter, so the resume is the only sensible
+        # target and the cover letter is picked up alongside it as usual.
+        resumes = [p for p in sorted(md_path.glob('*.md')) if not V.is_cover_file(p)]
+        if len(resumes) != 1:
+            raise ValueError(
+                f'{raw_arg} holds {len(resumes)} resume markdown files; name the one to convert.')
+        md_path = resumes[0]
+    elif md_path.suffix == '':
+        md_path = md_path.with_suffix('.md')
+    elif md_path.suffix.lower() != '.md':
+        raise ValueError(f'File must be a .md file: {arg_path}')
+
     if OUTPUT_DIR.resolve() not in md_path.parents:
-        raise ValueError(f'File must be inside output/: {resume_md}')
+        raise ValueError(f'File must be inside output/: {arg_path}')
     if not md_path.exists():
         raise FileNotFoundError(f'Markdown file not found: {md_path}')
     return md_path
@@ -480,7 +495,7 @@ def resolve_md_path(raw_arg: str) -> Path:
 def convert(md_path: Path, skip_verify: bool) -> bool:
     """Verify then write. Returns False if a gate blocked the write."""
     text = md_path.read_text(encoding='utf-8')
-    is_cover = md_path.stem.endswith('-cover')
+    is_cover = V.is_cover_file(md_path)
 
     gates = {} if skip_verify else V.verify(text, is_cover=is_cover)
     pdf_bytes, pages = render(md_path, md_path.stem)
@@ -519,9 +534,9 @@ def main() -> int:
     ap.add_argument(
         'resume_md', nargs='+',
         help=("One or more paths relative to output/, e.g. "
-              "'20260801/accuris-sap-solution-architect-gafari-arowojebe'. The .md "
-              "extension is optional. A paired '<name>-cover.md' alongside the resume "
-              "is converted automatically."))
+              "'20260801/accuris-sap-solution-architect/gafari-arowojebe'. The .md "
+              "extension is optional. A paired '<name>-cover-letter.md' in the same "
+              "directory is converted automatically."))
     ap.add_argument(
         '--no-verify', action='store_true',
         help='render without running the quality gates (for a quick look only)')
@@ -537,8 +552,8 @@ def main() -> int:
         ok &= convert(md_path, args.no_verify)
         converted.add(md_path)
 
-        if not md_path.stem.endswith('-cover'):
-            cover_path = md_path.with_name(md_path.stem + '-cover.md')
+        if not V.is_cover_file(md_path):
+            cover_path = V.cover_path_for(md_path)
             if cover_path.exists() and cover_path not in converted:
                 ok &= convert(cover_path, args.no_verify)
                 converted.add(cover_path)

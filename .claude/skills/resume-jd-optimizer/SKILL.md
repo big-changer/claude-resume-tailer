@@ -14,8 +14,8 @@ Input:
                                     read only in Phase 8, only if the user says yes
 
 Output:
-  - output/{YYYYMMDD}/{company}-{position}-{name}.md
-  - output/{YYYYMMDD}/{company}-{position}-{name}-cover.md
+  - output/{YYYYMMDD}/{company}-{position}/{name}.md
+  - output/{YYYYMMDD}/{company}-{position}/{name}-cover-letter.md
   - data/{slug}/new-skills.md            appended, never asked about
   - data/{slug}/master-resume-gaps.md    appended, never asked about
 ```
@@ -764,7 +764,7 @@ Self-review does not catch these defects, which is why they recurred for months.
 Run the gates:
 
 ```
-python scripts/verify_resume.py {YYYYMMDD}/{company}-{position}-{name}
+python scripts/verify_resume.py {YYYYMMDD}/{company}-{position}/{name}
 ```
 
 Five gates, all blocking:
@@ -798,10 +798,17 @@ Beyond the gates, check by reading:
 
 # PHASE 7: OUTPUT AND HANDOFF
 
-Save both files to `output/{YYYYMMDD}/`:
+One application is one folder. Save both files to
+`output/{YYYYMMDD}/{company}-{position}/`:
 
-- Resume: `{company}-{position}-{name}.md`
-- Cover letter: `{company}-{position}-{name}-cover.md`
+- Resume: `{name}.md`
+- Cover letter: `{name}-cover-letter.md`
+
+`{company}`, `{position}` and `{name}` are lowercased with every run of
+non-alphanumeric characters replaced by a single hyphen, so a run for Accuris
+writes `output/20260802/accuris-sap-solution-architect/gafari-arowojebe.md` and
+`output/20260802/accuris-sap-solution-architect/gafari-arowojebe-cover-letter.md`.
+The Write tool creates the folder, so do not `mkdir` it.
 
 Then report in chat, not in the files:
 
@@ -856,10 +863,11 @@ Before submitting:
 
 The two data files are for whenever you get to them, not for now.
 
-python scripts/convert_resume.py "{YYYYMMDD}/{company}-{position}-{name}"
+python scripts/convert_resume.py "{YYYYMMDD}/{company}-{position}/{name}"
 ```
 
-That command converts both files: it finds the paired `-cover.md` automatically.
+That command converts both files: it finds the paired `-cover-letter.md` in the
+same folder automatically. Passing the folder on its own works too.
 Print it filled in with the real path, as the literal last line. The user runs it
 themselves; this skill never runs it for them.
 

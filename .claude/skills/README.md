@@ -29,8 +29,8 @@ sessions can work different jobs in the same checkout:
 - `input/master-resume-bone.md` is the anonymised sharing template, never a source
 
 **Output**
-- `output/{YYYYMMDD}/{company}-{position}-{name}.md`
-- `output/{YYYYMMDD}/{company}-{position}-{name}-cover.md`
+- `output/{YYYYMMDD}/{company}-{position}/{name}.md`
+- `output/{YYYYMMDD}/{company}-{position}/{name}-cover-letter.md`
 - `data/{slug}/new-skills.md` - JD skills with no match in any track file
 - `data/{slug}/master-resume-gaps.md` - what would have made this run better
 - A chat-only report covering keyword coverage, requirements deliberately not
@@ -86,7 +86,7 @@ letter.
 Run them on their own with:
 
 ```bash
-python scripts/verify_resume.py 20260801/accuris-sap-solution-architect-gafari-arowojebe
+python scripts/verify_resume.py 20260801/accuris-sap-solution-architect/gafari-arowojebe
 ```
 
 The gates are the real specification. They exist because a prose checklist that
@@ -148,7 +148,7 @@ runs produce the same rhythm regardless of how the markdown was spaced.
 # 1. Put the posting in input/jd-{slug}.txt, e.g. input/jd-hiringcafe.txt
 # 2. Run the skill with that slug:  /resume-jd-optimizer hiringcafe
 # 3. Convert, which also converts the paired cover letter
-python scripts/convert_resume.py "20260801/accuris-sap-solution-architect-gafari-arowojebe"
+python scripts/convert_resume.py "20260801/accuris-sap-solution-architect/gafari-arowojebe"
 ```
 
 `--no-verify` renders without the gates. It is for inspecting a work-in-progress
