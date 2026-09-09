@@ -3,7 +3,7 @@
     {
       "id": "resume-jd-optimizer",
       "name": "Resume-JD Optimizer",
-      "version": "3.1.0",
+      "version": "3.2.0",
       "description": "Generates a tailored two-page resume and matching cover letter from a job description and the candidate's per-track master resumes, in a plain human-written style, enforced by blocking build gates.",
       "author": "Resume Generator Team",
       "license": "MIT",
@@ -37,6 +37,13 @@
           "type": "file_path",
           "required": false,
           "default": "input/jd-{slug}.txt"
+        },
+        {
+          "name": "track_map",
+          "description": "JSON map from JD text to track files. Its 'tracks' object is authoritative for which master-resume-{track}.md files exist. Read in the same batch as the JD at Step 2 and applied at Step 3: no_fit check, then title match for the primary, then keyword scoring for the secondary. Matching is on word boundaries, never bare substring",
+          "type": "file_path",
+          "required": false,
+          "default": "input/track-map.json"
         },
         {
           "name": "track_resume_paths",
@@ -86,42 +93,33 @@
       ],
       "features": [
         "Job Description Analysis",
-        "Resume Parsing & Restructuring",
-        "Skill Gap Analysis with Human Confirmation",
+        "Track Map Lookup (title fast path, then keyword scoring)",
+        "Role-Responsibility Track Selection",
+        "Single Batched Source Read",
         "ATS Keyword Coverage",
         "Cover Letter Generation",
-        "Master Resume Sync",
         "Blocking Quality Gates (scripts/verify_resume.py)",
-        "Post-Delivery Question Answering",
-        "Role-Responsibility Track Selection",
-        "Autonomous Gap Logging"
+        "Deferred Post-Delivery Logging",
+        "Master Resume Sync",
+        "Post-Delivery Question Answering"
       ],
       "phases": [
-        "Phase 0: Run Context",
-        "Phase 1: Job Description Analysis",
-        "Phase 1.2: Track Selection",
-        "Phase 1.5: New Skill Detection & Logging",
-        "Phase 2: Master Resume Parsing",
-        "Phase 3: Gap Analysis & Matching",
-        "Phase 4: Certification Handling",
-        "Phase 5: Content Generation",
-        "Phase 5.8: Cover Letter",
-        "Phase 6: Verification",
-        "Phase 7: Output & Handoff",
-        "Phase 8: Post-Delivery Questions"
+        "Step 1: Run Context",
+        "Step 2: Job Description Analysis",
+        "Step 3: Track Selection",
+        "Step 4: Read the Sources",
+        "Step 5: Generate Resume and Cover Letter",
+        "Step 6: Verification",
+        "Step 7: Deliver and Report",
+        "Step 8: Deferred Logging",
+        "Step 9: Post-Delivery Questions"
       ],
       "roles": [
-        "Full Stack Engineer",
-        "Data Engineer",
-        "Cloud / DevOps Engineer",
-        "Security Engineer",
-        "Enterprise Platform Engineer",
-        "IT Operations Engineer",
-        "Mobile Engineer",
-        "AI Engineer",
-        "Product Manager",
-        "Technical Writer",
-        "Blockchain Engineer (integration only)"
+        "Full Stack Engineer (fs)",
+        "Data Engineer (data)",
+        "Cloud / DevOps Engineer (devops)",
+        "Enterprise Integration Engineer (enterprise)",
+        "AI Engineer (ai)"
       ],
       "success_metrics": {
         "length": "Two pages, roughly 900 words, never above 1050",
@@ -172,7 +170,7 @@
         "step8": "At the weekend, work through the two data/{slug}/ files and fold real skills into the track resumes"
       },
       "created_date": "2026-07-22",
-      "last_updated": "2026-08-03",
+      "last_updated": "2026-09-09",
       "status": "production",
       "compatibility": {
         "claude_versions": [
@@ -186,7 +184,25 @@
           "Claude API",
           "IDE Extensions"
         ]
-      }
+      },
+      "supportingFiles": [
+        {
+          "path": "resume-jd-optimizer/output-contract.md",
+          "description": "Full renderer semantics and the hard limits enforced by verify_resume.py. Read once before the first output write if the inline contract is unclear"
+        },
+        {
+          "path": "resume-jd-optimizer/house-style.md",
+          "description": "Human-voice rules, the banned phrase list, literal keyword coverage, and the Step 9 quiz answer format. Read when writing prose or when the human-style gate fails"
+        },
+        {
+          "path": "resume-jd-optimizer/logging.md",
+          "description": "Step 8 only: new-skills and gaps entry formats, the single-Grep classification pass, and the master resume sync rules"
+        },
+        {
+          "path": "resume-jd-optimizer/edge-cases.md",
+          "description": "Unusual conditions only. Not read on a normal run"
+        }
+      ]
     }
   ],
   "repository": {
@@ -195,6 +211,6 @@
     "url": "https://github.com/your-org/resume-generator",
     "skills_directory": ".claude/skills"
   },
-  "version": "2.0.0",
-  "last_updated": "2026-08-03"
+  "version": "2.1.0",
+  "last_updated": "2026-09-09"
 }

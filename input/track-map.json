@@ -1,0 +1,221 @@
+{
+  "_comment": "Maps job-description text to input/master-resume-{track}.md files. Authoritative for which track files exist: a track absent from 'tracks' has no file and cannot be selected. Read at Step 2 in the same batch as the JD, applied at Step 3.",
+  "version": 2,
+  "updated": "2026-09-09",
+
+  "rules": {
+    "matching": "Case-insensitive, on word boundaries, never bare substring. 'erp' must not match inside 'enterprise', and 'ai' must not match inside 'maintain'. A multi-word entry matches as a phrase.",
+    "order": "Check no_fit first, then titles, then keyword scoring.",
+    "step_1_no_fit": "If any no_fit keyword appears in the JD title or must-haves, use no_fit.fallback_track as primary with no secondary, log no_fit.log, and stop.",
+    "step_2_title": "Match the JD job title against each track's 'titles'. The first hit is the PRIMARY. Do not stop here: the secondary still comes from step 3.",
+    "step_3_secondary": "If the primary declares a 'default_secondary', use it. Otherwise score every other track by counting its 'keywords' present in the JD's must-haves, and take the highest scorer that has at least min_keyword_hits. If none reaches it, run with the primary alone.",
+    "step_4_no_title_match": "If no title matched, score all tracks the same way, apply domain_boost, and the highest score is primary. Add a second only if its score is at least secondary_threshold times the primary's.",
+    "min_keyword_hits": 2,
+    "secondary_threshold": 0.5,
+    "max_tracks": 2,
+    "fallback_track": "fs",
+    "primary_supplies": "headline, summary, skill category ordering, and every fact in the output",
+    "secondary_supplies": "Sections 1 and 2 skills only"
+  },
+
+  "tracks": {
+    "fs": {
+      "file": "input/master-resume-fs.md",
+      "label": "Full Stack Engineer",
+      "strength": "strong",
+      "default_secondary": null,
+      "titles": [
+        "full stack", "fullstack", "full-stack", "software engineer",
+        "software developer", "web developer", "application developer",
+        "frontend", "front end", "front-end", "react developer", "ui engineer",
+        "backend", "back end", "back-end", "python engineer", "python developer",
+        "api engineer"
+      ],
+      "keywords": [
+        "full stack", "web application", "frontend", "backend", "rest api",
+        "react", "next.js", "typescript", "javascript", "python", "django",
+        "fastapi", "component", "responsive", "accessible forms", "crud",
+        "single page application", "production support"
+      ],
+      "caveats": []
+    },
+
+    "data": {
+      "file": "input/master-resume-data.md",
+      "label": "Data Engineer",
+      "strength": "strong",
+      "default_secondary": "fs",
+      "titles": [
+        "data engineer", "analytics engineer", "etl developer", "bi engineer",
+        "reporting engineer", "data platform"
+      ],
+      "keywords": [
+        "sql", "postgresql", "etl", "elt", "pipeline", "ingestion", "pandas",
+        "data validation", "data quality", "deduplication", "batch job",
+        "reporting", "query tuning", "indexing", "caching", "redis", "analytics",
+        "warehouse"
+      ],
+      "caveats": []
+    },
+
+    "devops": {
+      "file": "input/master-resume-devops.md",
+      "label": "Cloud / DevOps Engineer",
+      "strength": "moderate",
+      "default_secondary": "fs",
+      "titles": [
+        "devops", "sre", "site reliability", "platform engineer",
+        "release engineer", "build engineer", "infrastructure engineer",
+        "cloud engineer"
+      ],
+      "keywords": [
+        "docker", "container", "ci/cd", "github actions", "jenkins", "aws",
+        "ec2", "s3", "linux", "bash", "nginx", "deployment", "release",
+        "rollback", "monitoring", "application logs", "observability", "on-call"
+      ],
+      "caveats": [
+        {
+          "when": ["kubernetes", "k8s", "terraform", "infrastructure as code",
+                   "iac", "helm", "ansible", "cluster", "service mesh"],
+          "action": "select_anyway",
+          "log": "Not recorded in any track file. devops is the closest track, but claim none of this. Would need real infrastructure work added to Section 5 to support it."
+        }
+      ]
+    },
+
+    "enterprise": {
+      "file": "input/master-resume-enterprise.md",
+      "label": "Enterprise Integration Engineer",
+      "strength": "moderate",
+      "default_secondary": "fs",
+      "titles": [
+        "integration engineer", "erp", "business systems", "solutions engineer",
+        "business applications", "systems analyst"
+      ],
+      "keywords": [
+        "erp", "crm", "itsm", "accounting system", "integration",
+        "scheduled data exchange", "order entry", "inventory",
+        "management reporting", "approval workflow", "internal tools",
+        "back office", "e-commerce", "role-based access control",
+        "business process"
+      ],
+      "caveats": [
+        {
+          "when": ["sap", "salesforce", "netsuite", "servicenow", "workday",
+                   "dynamics", "oracle erp", "peoplesoft"],
+          "action": "select_anyway",
+          "log": "No named ERP or CRM vendor platform is recorded, only generic ERP and accounting integration over REST APIs and scheduled data exchange. Add the real platform names to Section 1 if the candidate has used them."
+        }
+      ]
+    },
+
+    "ai": {
+      "file": "input/master-resume-ai.md",
+      "label": "AI Engineer",
+      "strength": "thin",
+      "default_secondary": "fs",
+      "titles": [
+        "ai engineer", "ml engineer", "machine learning engineer", "llm",
+        "genai", "generative ai", "applied ai", "ai developer"
+      ],
+      "keywords": [
+        "llm", "rag", "retrieval-augmented", "embeddings", "vector", "pgvector",
+        "semantic search", "prompt", "structured outputs", "genai",
+        "ai application", "openai", "anthropic", "chatbot", "machine learning"
+      ],
+      "caveats": [
+        {
+          "when": [],
+          "always": true,
+          "action": "select_anyway",
+          "log": "AI and LLM tooling is itemised in Section 1 but has no delivery project recorded against it in Section 5. Keep claims at the skill level, never at the project level, until a real project is added."
+        }
+      ]
+    }
+  },
+
+  "domain_boost": {
+    "_comment": "The record has real healthcare delivery behind these three tracks, so a healthcare posting should favour them.",
+    "keywords": [
+      "healthcare", "health plan", "medicaid", "medicare", "marketplace",
+      "claims", "provider data", "phi", "protected health information",
+      "member services", "payer", "eligibility"
+    ],
+    "boost_tracks": ["fs", "data", "enterprise"],
+    "points": 1
+  },
+
+  "global_caveats": [
+    {
+      "when": ["8+ years", "9+ years", "10+ years", "10 years", "12 years",
+               "15 years", "decade of"],
+      "action": "select_anyway",
+      "log": "Record supports 7+ years, March 2019 to present. Do not inflate the headline or summary. If the JD makes the year count a hard bar, log it as a structural mismatch."
+    },
+    {
+      "when": ["linkedin", "github", "portfolio", "link to your profile"],
+      "action": "select_anyway",
+      "log": "No LinkedIn or GitHub URL is recorded in Sections 8 and 9, so those fields are omitted from the contact line. Add real URLs to every track file to close this."
+    }
+  ],
+
+  "no_fit": {
+    "_comment": "No track file covers these. Use fallback_track as primary, generate honestly from what the record holds, and log the mismatch at Step 8.",
+    "fallback_track": "fs",
+    "log": "JD is outside every track the record covers. Generated from master-resume-fs.md as the general software engineering fallback.",
+    "keywords": [
+      "security engineer", "soc analyst", "penetration testing", "pentest",
+      "incident response", "grc", "compliance auditor",
+      "it support", "service desk", "help desk", "sysadmin", "desktop support",
+      "ios", "android", "swift", "kotlin", "react native", "flutter",
+      "mobile developer",
+      "product manager", "program manager", "product owner",
+      "technical writer", "documentation engineer",
+      "solidity", "smart contract", "web3", "blockchain",
+      "mechanical engineer", "civil engineer", "electrical engineer",
+      "fire protection", "structural engineer"
+    ]
+  },
+
+  "examples": [
+    {
+      "_comment": "The 'jd' field is a short label, not the text matched against. The primary comes from the title, but the secondary is scored against the whole posting body, so these secondaries assume a full JD mentioning the relevant keywords."
+    },
+    {
+      "jd": "Senior Python Engineer, healthcare SaaS",
+      "primary": "fs",
+      "secondary": "data",
+      "why": "title hit on 'python engineer', domain_boost applies"
+    },
+    {
+      "jd": "Data Engineer, ETL and reporting",
+      "primary": "data",
+      "secondary": "fs",
+      "why": "title hit on 'data engineer'"
+    },
+    {
+      "jd": "Full Stack Engineer with AI features",
+      "primary": "fs",
+      "secondary": "ai",
+      "why": "title hit on 'full stack', ai scores above threshold on keywords"
+    },
+    {
+      "jd": "DevOps Engineer, Kubernetes required",
+      "primary": "devops",
+      "secondary": "fs",
+      "why": "title hit, but the kubernetes caveat fires and must be logged"
+    },
+    {
+      "jd": "ERP Integration Developer, NetSuite",
+      "primary": "enterprise",
+      "secondary": "fs",
+      "why": "title hit on 'erp', vendor caveat fires and must be logged"
+    },
+    {
+      "jd": "iOS Engineer",
+      "primary": "fs",
+      "secondary": null,
+      "why": "no_fit hit on 'ios', falls back and logs the mismatch"
+    }
+  ]
+}

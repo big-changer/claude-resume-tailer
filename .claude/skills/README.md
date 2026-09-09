@@ -198,7 +198,12 @@ without the other loses the guarantees.
 
 ```
 .claude/skills/
-├── resume-jd-optimizer/SKILL.md   the skill
+├── resume-jd-optimizer/
+│   ├── SKILL.md                   the skill, loaded every run
+│   ├── output-contract.md         renderer semantics and hard limits
+│   ├── house-style.md             voice rules, keyword coverage, quiz format
+│   ├── logging.md                 Step 8 bookkeeping, read after delivery
+│   └── edge-cases.md              unusual conditions only
 ├── README.md                      this file
 ├── SHARING-GUIDE.md
 └── manifest.json                  metadata

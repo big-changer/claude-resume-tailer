@@ -1,8 +1,10 @@
 input/*
 !input/master-resume-bone.md
+!input/track-map.json
 output_*/
 output/
 .venv
 reference
 __pycache__/
 data
+.claude/skills/resume-tailoring
