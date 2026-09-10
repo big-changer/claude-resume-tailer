@@ -34,8 +34,12 @@ Input:
   input/jd-{slug}.txt             the posting. One per run slug
   input/track-map.json            JD text to track files. Authoritative for which
                                   tracks exist. Read at Step 2, applied at Step 3
-  input/master-resume-{track}.md  the only resume sources. Each is complete on its
-                                  own: skills AND facts. Selected in Step 3
+  input/profile.md                shared and single-source: employers, dates,
+                                  locations, education, contacts. The gate reads it
+  input/master-resume-{track}.md  per-track: skills, certificates, open source,
+                                  behavioural examples. Selected in Step 3
+  input/projects.md               the shared project record: what was built, the
+                                  skills each project used, and every metric
   input/quiz-{slug}.txt           optional. Read in Step 9 only, only if the user says yes
 
 Output:
@@ -68,9 +72,9 @@ See supporting files, and read them only when the step says to:
 This skill was rewritten because it was slow. The rules below are what made it fast, and
 they matter as much as the content rules.
 
-1. **Batch every read into one message.** The primary track file and every secondary are
-   read in a single parallel batch at Step 4. Never read a file twice in a run; hold what
-   you read.
+1. **Batch every read into one message.** The JD and `track-map.json` go together at Step
+   2; the primary track file, every secondary, `input/profile.md` and
+   `input/projects.md` go together at Step 4. Never read a file twice in a run; hold what you read.
 2. **One shell command per run.** `python scripts/verify_resume.py` at Step 6 is the only
    one. Everything else is Read, Glob, Grep or Write. Never `ls`, `cat`, `head` or `mkdir`.
    The Write tool creates parent directories on its own.
@@ -163,8 +167,10 @@ Verify this list against the draft **before** the Write call. Each line is a blo
 - [ ] Resume under 1050 words, target roughly 900. Cover letter under 430 words, target
       250 to 400
 - [ ] Headline is one line, under 60 characters, and its distinctive words match `target-role`
-- [ ] Every company, date, location, school and contact value appears verbatim in the
-      primary track file
+- [ ] Every company, date, location, school and contact value appears verbatim in
+      `input/profile.md`
+- [ ] Every metric appears verbatim in a `Measured results` line in `input/projects.md`
+- [ ] No project-specific date range: only the employing role's period is recorded
 
 ---
 
@@ -206,9 +212,11 @@ Hold the following, without writing any of it to chat:
 ## Step 3: Track selection
 
 There is no combined master resume. Each `input/master-resume-{track}.md` is the whole
-record filtered to one kind of role, **complete on its own**: skills in Sections 1 and 2,
-every fact in Sections 3 to 15. Track selection decides both what the resume may claim and
-what it is verified against, so it is the highest-leverage step in the run.
+record filtered to one kind of role: the skills list in Section 1, then certificates, open
+source, and behavioural examples written specifically for that kind of role. The hard facts are **not** in these files. They are shared
+and single-source in `input/profile.md`, with the project record in `input/projects.md`.
+Track selection therefore decides what the resume may *claim*, which is what makes it the
+highest-leverage step in the run.
 
 `input/master-resume-bone.md` is the anonymised sharing template. Never read it, never
 select it.
@@ -234,8 +242,9 @@ cannot be selected. Follow its `rules` object in order:
 "enterprise", and `ai` must not match inside "maintain". Multi-word entries match as phrases.
 
 Never more than two tracks. The first is **primary**: it drives the headline, the summary,
-the skill category ordering and **every fact in the output**. The second contributes skills
-only, and exists to widen Sections 1 and 2, not to reshape the document.
+the skill category ordering, and which projects lead. The second contributes skills only,
+and exists to widen Section 1, not to reshape the document. Neither supplies facts: those
+come from `input/profile.md` whatever the selection.
 
 Prefer the map over your own reading of the JD. It encodes what the record actually
 supports, which is not the same as what the title suggests. If the map and the
@@ -243,22 +252,47 @@ responsibilities genuinely disagree, follow the map and log the disagreement at 
 
 ## Step 4: Read the sources
 
-**One parallel batch of Read calls: the primary track file and every secondary.** Nothing
-else is read this run.
+**One parallel batch of Read calls: the primary track file, every secondary,
+`input/profile.md` and `input/projects.md`.** Nothing else is read this run.
 
 | Content | Comes from |
 |---|---|
-| Skills, Sections 1 and 2 | **every selected track**, unioned, primary's wording winning on duplicates |
-| Every fact: companies, titles, dates, locations, education, contacts, certifications, Sections 3 to 15 | **the primary track alone, always** |
+| Every fact: employers, titles, dates, locations, education, contacts | **`input/profile.md`**, the only source |
+| Projects, what was built, and every metric | **`input/projects.md`**, the only source |
+| Skills, Section 1 | **every selected track**, unioned, primary's wording winning on duplicates |
+| Certificates and open source, Sections 2 and 3 | **the primary track alone** |
+| Behavioural examples, Section 4 | **the primary track alone.** Written per track on purpose, so the wording differs between files by design |
 
-If a secondary track holds a fact the primary does not, **do not import it.** The
-frozen-facts gate reads the union of all track files so it would pass, but the files
-disagreeing is drift. Use the primary's version and log the disagreement at Step 8.
+The two shared files are not per-track and are never duplicated into a track file, so there
+is no primary-versus-secondary question for either: read each once and use it whatever the
+selection. That is also why the old cross-track fact-drift rules are gone. A fact now exists
+in exactly one place, so two files cannot disagree about it.
 
-Section 2, "Always-Required / Core Skills", is the candidate's standing declaration of how
-they want to be positioned. Prefer those skills inside the eight-category budget, but the
-two-page budget wins: do not carry every Section 2 entry into every resume regardless of
-relevance. That is how an SAP architect resume ended up listing Rust, Scala, Dart and SAS.
+Each project entry carries a `Tracks` line, a `Skills used` line and a `Measured results`
+line.
+
+**Section 1 is an inventory, not a shortlist.** It lists everything the candidate can
+claim for that kind of role, already ordered so the most track-relevant categories come
+first, and it is deliberately longer than any resume can carry. There is no
+candidate-declared priority list: **select by JD relevance alone**, inside the
+eight-category budget, and let the rest go. An entry matching nothing in this posting does
+not go on the page, however impressive it is. That is how an SAP architect resume ended up
+listing Rust, Scala, Dart and SAS.
+
+**`Skills used` is the evidence line.** A skill listed in a project can be claimed at
+project level: written into a bullet, tied to what was built. A skill itemised in Section 1
+but absent from every `Skills used` line has no project behind it, so it belongs in
+Technical Skills and nowhere else. Never write a bullet around it. The map's caveats and
+the library's "Recorded scope limits" both exist to catch this.
+
+A project entry may also carry a **`Recorded gaps`** line. That names detail the project
+genuinely lacks, usually specific tooling. Claim what the entry evidences and never what a
+gaps line says is unrecorded: naming a vector store or a model the record does not confirm
+is fabrication even when the project itself is real.
+
+Rank projects by the `Tracks` line, primary first, then secondary, then the rest. A project
+tagged for neither selected track can still supply a bullet when its `Skills used` matches
+the JD; the tag orders the work, it does not gate it.
 
 Score each role for relevance to the target (90-100 high, 60-89 medium, 0-59 low), and
 note as you go the JD requirements nothing in the sources supports. That running list
@@ -292,10 +326,12 @@ concrete, named for what this employer cares about ("SAP BASIS and Security", no
 "Enterprise Platform Ecosystem"). Order categories and values by JD relevance. 8 to 16
 values per category; a category listing 40 technologies reads as a keyword dump.
 
-**Professional Experience.** Every role from the primary track's Section 3, real titles
-unchanged. 4 to 6 bullets each, most JD-relevant first. Bullet shape: what you did, what
+**Professional Experience.** Every role from the employment table in `input/profile.md`
+Section 1, real titles unchanged. 4 to 6 bullets each, most JD-relevant first. Build the bullets from the
+`input/projects.md` entries belonging to that company: the prose says what was built, and
+`Measured results` holds the only numbers that may appear. Bullet shape: what you did, what
 you built or changed, what happened as a result. Strong verb first, a real number where
-the sources have one. Screeners look for about five quantified outcomes; use every real
+`Measured results` has one. Screeners look for about five quantified outcomes; use every real
 number before falling back to qualitative phrasing, and never close the gap by inventing
 one. Leadership belongs in the bullets of the role where it happened, not in its own
 section.
@@ -338,9 +374,9 @@ inspecting a work-in-progress layout, not for shipping. If a gate fails, fix onl
 names and re-run once. Do not re-read the track files to fix a style gate.
 
 Then read once more for what the gates cannot see: every must-have keyword present and
-none more than three times, every fact traceable to the **primary** track specifically
-(the gate reads the union, so it will not catch a fact borrowed from an unselected track),
-most relevant experience first, and no sentence that sounds like a press release.
+none more than three times, most relevant experience first, and no sentence that sounds
+like a press release. Facts need no cross-checking any more: `input/profile.md` is their
+only source, and the gate reads it.
 
 ## Step 7: Deliver
 
@@ -367,7 +403,7 @@ Report in chat, not in the files:
 
 ### Omitted for missing detail
 - [e.g. SAP certification: recorded as held, but no name, module, date or ID. Add those
-  to Section 12 to include it next run.]
+  to Section 2 of each track file to include it next run.]
 ```
 
 Then the handoff, with the real path filled in as the literal last line:

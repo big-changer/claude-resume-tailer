@@ -14,8 +14,8 @@
     "secondary_threshold": 0.5,
     "max_tracks": 2,
     "fallback_track": "fs",
-    "primary_supplies": "headline, summary, skill category ordering, and every fact in the output",
-    "secondary_supplies": "Sections 1 and 2 skills only"
+    "primary_supplies": "headline, summary, skill category ordering, certificates, and which projects lead. Facts always come from input/profile.md",
+    "secondary_supplies": "Section 1 skills only"
   },
 
   "tracks": {
@@ -78,7 +78,7 @@
           "when": ["kubernetes", "k8s", "terraform", "infrastructure as code",
                    "iac", "helm", "ansible", "cluster", "service mesh"],
           "action": "select_anyway",
-          "log": "Not recorded in any track file. devops is the closest track, but claim none of this. Would need real infrastructure work added to Section 5 to support it."
+          "log": "Not recorded in any track file. devops is the closest track, but claim none of this. Would need real infrastructure work added to input/projects.md to support it."
         }
       ]
     },
@@ -112,7 +112,7 @@
     "ai": {
       "file": "input/master-resume-ai.md",
       "label": "AI Engineer",
-      "strength": "thin",
+      "strength": "moderate",
       "default_secondary": "fs",
       "titles": [
         "ai engineer", "ml engineer", "machine learning engineer", "llm",
@@ -128,7 +128,7 @@
           "when": [],
           "always": true,
           "action": "select_anyway",
-          "log": "AI and LLM tooling is itemised in Section 1 but has no delivery project recorded against it in Section 5. Keep claims at the skill level, never at the project level, until a real project is added."
+          "log": "AI Knowledge Assistant in input/projects.md evidences RAG, embeddings, semantic search and LLM API integration. It does not record the model provider, the vector store, the chunking and retrieval approach, or any accuracy or adoption figure, so claim the capability and never a named tool. Adding those details is the single highest-value change to this record."
         }
       ]
     }
@@ -155,7 +155,7 @@
     {
       "when": ["linkedin", "github", "portfolio", "link to your profile"],
       "action": "select_anyway",
-      "log": "No LinkedIn or GitHub URL is recorded in Sections 8 and 9, so those fields are omitted from the contact line. Add real URLs to every track file to close this."
+      "log": "No LinkedIn or GitHub URL is recorded in Sections 5 and 6 of input/profile.md, so those fields are omitted from the contact line. Add real URLs to input/profile.md to close this."
     }
   ],
 

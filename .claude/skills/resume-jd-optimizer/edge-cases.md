@@ -17,14 +17,20 @@ Read this only when one of these conditions actually fires. The normal run never
 
 | Scenario | Action |
 |---|---|
-| JD spans several kinds of work | Two tracks at most, ranked. The primary drives the document and supplies every fact |
+| JD spans several kinds of work | Two tracks at most, ranked. The primary drives the document; facts come from `input/profile.md` either way |
 | No track matches the JD | Use `master-resume-fs.md` as primary and log it to the gaps file. The map's "no track fits" list names the disciplines this covers |
 | The map names a track whose file is missing | Treat it as "no track fits" and fall back to `fs`. Log it: the map and the files have drifted apart |
 | A `master-resume-*.md` file exists that the map does not list | Do not select it. The map is authoritative. Log it so the map can be updated |
 | The map and the JD's responsibilities disagree | Follow the map, which encodes what the record supports rather than what the title suggests. Log the disagreement |
-| Two track files contradict each other on a fact | Facts follow the primary track. Log the drift |
-| A secondary track has a fact the primary lacks | Do not use it. The frozen-facts gate would pass it, which is exactly why the rule is here. Log the drift |
-| Section 2 core skills are irrelevant to this JD | Prefer them within the eight-category budget, but do not blow the budget to include them all |
+| Two track files differ in Section 4 | Expected. Behavioural examples are written per track on purpose. Use the primary's version and log nothing |
+| Two track files differ on a certificate or open-source entry, Sections 2 or 3 | Real drift. Follow the primary track and log it. Facts cannot conflict: they live only in `input/profile.md` |
+| `input/profile.md` is missing | Stop. The frozen-facts gate refuses to run without it, and no employer, date or contact can be verified |
+| A skill is in Section 1 but in no project's `Skills used` | It has no project evidence. Allowed in Technical Skills, never as an experience bullet. Log it |
+| A project's `Measured results` says "None recorded" | Write the bullet qualitatively. Never borrow a number from another project |
+| `input/projects.md` is missing | Generate from the track files alone, with qualitative bullets and no metrics, and log it. Do not reconstruct projects from the skills list |
+| A project names a company not in `input/profile.md` | Do not use it. The frozen-facts gate would reject the company. Log the drift |
+| The primary track's Section 4 has no example matching what the JD emphasises | Use the closest genuine one and log the gap. Never borrow an example from another track and never invent one |
+| Section 1 lists far more skills than fit the page | It is an inventory, not a shortlist. Select by JD relevance within the eight-category budget and drop the rest. There is no candidate-declared priority list to honour |
 | Two sessions both need a master resume sync write | The track files are shared, so apply one edit at a time and re-read the file before the second write |
 
 ## Content and gaps
@@ -49,7 +55,7 @@ Read this only when one of these conditions actually fires. The normal run never
 |---|---|
 | Resume runs over two pages | Cut the least JD-relevant skill categories first, then the weakest bullet in each role, then optional sections |
 | A gate fails | Fix only what it names and re-run once. Do not use `--no-verify`, and do not re-read the track files to fix a style gate |
-| The frozen-facts gate passes but a fact came from an unselected track | The gate reads the union of all track files, so it cannot catch this. Check it by reading, and replace the value with the primary track's version |
+| A fact is right in the resume but absent from `input/profile.md` | The gate rejects it. Add it to the profile if it is true, or drop it from the resume. Never satisfy the gate by editing a track file |
 
 ## Step 9 questions
 

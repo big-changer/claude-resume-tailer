@@ -47,10 +47,24 @@
         },
         {
           "name": "track_resume_paths",
-          "description": "Per-track master resumes, selected from the JD's role responsibilities. These are the only resume sources: each file is complete on its own, carrying skills in Sections 1 and 2 and every fact in Sections 3 to 15. Skills come from every selected track, unioned; facts come from the primary track alone. There is no combined input/master-resume.md. input/master-resume-bone.md is the anonymised sharing template and is never a source",
+          "description": "Per-track master resumes, selected from the JD role responsibilities. Each holds only what varies by track: Section 1 skills, then certificates, open source and behavioural examples written specifically for that kind of role. Facts live in input/profile.md and projects in input/projects.md, so a track file is no longer a complete record on its own. Skills come from every selected track, unioned; certificates and behavioural material from the primary. input/master-resume-bone.md is the anonymised sharing template and is never a source",
           "type": "file_path",
           "required": false,
           "default": "input/master-resume-{track}.md"
+        },
+        {
+          "name": "profile",
+          "type": "file_path",
+          "required": false,
+          "default": "input/profile.md",
+          "description": "Shared, single-source record of every hard fact: employers, titles, dates, locations, company descriptions, education, and contact values. Not per-track and never duplicated into a track file, so two files cannot disagree about a fact. Read at Step 4 with the selected tracks. The frozen-facts gate reads it and refuses to run without it"
+        },
+        {
+          "name": "projects",
+          "type": "file_path",
+          "required": false,
+          "default": "input/projects.md",
+          "description": "Shared project and product library: one entry per project with Company, Period, Tracks, Skills used, Measured results and a prose description. Not per-track and never duplicated into a track file. Read at Step 4 with the selected tracks. Supplies every experience bullet and every metric: a skill absent from all Skills used lines has no project evidence and may appear only in Technical Skills"
         },
         {
           "name": "output_dir",
@@ -94,7 +108,9 @@
       "features": [
         "Job Description Analysis",
         "Track Map Lookup (title fast path, then keyword scoring)",
+        "Single-Source Shared Profile (facts split from per-track skills)",
         "Role-Responsibility Track Selection",
+        "Shared Project Library with Per-Project Skill Evidence",
         "Single Batched Source Read",
         "ATS Keyword Coverage",
         "Cover Letter Generation",
@@ -133,17 +149,22 @@
       "constraints": [
         "Never fabricate experience, dates, job titles, certifications or metrics",
         "Never generate a certification, and never emit an AI-generated marker",
+        "Never write a metric that is not verbatim in a Measured results line in input/projects.md",
+        "Never build an experience bullet around a skill that appears in no project Skills used line",
         "Never leave a bracketed placeholder in the deliverable; omit the entry and report the gap in chat",
         "Never claim a JD-only skill; detecting one and logging it is not evidence the candidate has it",
         "Never stop to ask the user mid-run; log the uncertainty to data/{slug}/ and finish the deliverable",
-        "Never source a smart-contract, protocol or audit role from master-resume-blockchain.md",
+        "Facts always come from input/profile.md, the single source; never from a track file",
+        "Never satisfy the frozen-facts gate by editing a track file; correct input/profile.md instead",
+        "Never select a track absent from input/track-map.json; its 'tracks' object is authoritative for which master-resume-*.md files exist",
+        "Match track-map.json terms on word boundaries, never as bare substrings",
         "Never read input/master-resume-bone.md; it is the anonymised sharing template",
-        "Facts always come from the primary track file alone, never merged across the selected tracks",
         "A fact the user volunteers is written to every input/master-resume-*.md file that carries that section, never to just one",
         "No em dashes, arrows, emoji or AI-register phrasing",
         "No inline bold outside technical-skill labels",
         "Report unmet requirements every run rather than narrowing the keyword list until it scores 100%",
-        "Never read another slug's jd-*.txt, even when the expected one is missing"
+        "Never read another slug's jd-*.txt, even when the expected one is missing",
+        "Never reconcile Section 4 behavioural examples across tracks; they differ by design"
       ],
       "research_basis": {
         "ats_evolution": "Modern ATS use ML for contextual relevance scoring",
@@ -162,7 +183,7 @@
       "example_workflow": {
         "step1": "Pick a run slug and put the posting in input/jd-{slug}.txt. The track resumes are already in place",
         "step2": "Run the skill with that slug, e.g. /resume-jd-optimizer hiringcafe. It does not stop to ask anything",
-        "step3": "Skill picks the matching master-resume-{track}.md files from the JD's role responsibilities, ranks them, and takes every fact from the primary",
+        "step3": "Skill picks the matching master-resume-{track}.md files from the JD role responsibilities and ranks them, then reads input/profile.md for the facts and input/projects.md for the projects and metrics",
         "step4": "Skill writes the resume and cover letter to output/{YYYYMMDD}/{company}-{position}/",
         "step5": "Skill appends anything new or missing to data/{slug}/new-skills.md and data/{slug}/master-resume-gaps.md",
         "step6": "Review the chat report, especially 'Not claimed' and 'Omitted for missing detail'",

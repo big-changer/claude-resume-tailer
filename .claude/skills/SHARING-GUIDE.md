@@ -83,7 +83,7 @@ your-project/
    slug. Two sessions with two slugs can run at once in one checkout
 3. Add your master resumes as input/master-resume-{track}.md, one per kind of
    role you apply for. Each file must be complete on its own: skills in
-   Sections 1 and 2, and every fact in Sections 3 to 15. There is no combined
+   Section 1, and every fact in Sections 2 to 13. There is no combined
    master-resume.md
 ```
 

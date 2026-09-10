@@ -32,13 +32,18 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 
-# There is no combined master resume. Each input/master-resume-{track}.md is the
-# whole record filtered to one kind of role, and each carries the same facts, so
-# the gate checks the union of them. master-resume-bone.md is excluded: it is the
-# anonymised sharing template, and its bracketed placeholders are not facts.
+# The record is split across files. input/profile.md holds the shared identity,
+# employment, education and contact facts; each input/master-resume-{track}.md holds
+# one kind of role's skills, certificates, open source and behavioural examples.
+# The frozen-facts gate checks the union, because a resume draws from both.
+# master-resume-bone.md is excluded: it is the anonymised sharing template, and its
+# bracketed placeholders are not facts. input/projects.md is deliberately NOT a
+# source: projects must not introduce an employer the profile does not record, so a
+# project naming an unknown company should fail this gate rather than pass it.
 MASTER_DIR = ROOT / 'input'
 MASTER_GLOB = 'master-resume-*.md'
 MASTER_EXCLUDE = {'master-resume-bone.md'}
+PROFILE_NAME = 'profile.md'
 
 
 # Output layout: output/{YYYYMMDD}/{company}-{position}/{name}.md, with the
@@ -64,6 +69,17 @@ def master_resumes(directory: Path = MASTER_DIR) -> list[Path]:
     return sorted(
         p for p in directory.glob(MASTER_GLOB) if p.name not in MASTER_EXCLUDE
     )
+
+
+def fact_sources(directory: Path = MASTER_DIR) -> list[Path]:
+    """Track files plus the shared profile.
+
+    Employers, dates, locations, schools and contact values live in profile.md
+    only, so omitting it here would fail every fact in every generated resume.
+    """
+    profile = directory / PROFILE_NAME
+    sources = master_resumes(directory)
+    return ([profile] if profile.is_file() else []) + sources
 
 # Budgets. The reference resume this pipeline is modelled on runs about 900 words;
 # the cover-letter budget matches the 250-400 word rule in the skill. The page
@@ -237,21 +253,28 @@ def _date_forms(token: str) -> list[str]:
 
 # ── Gate 2 — frozen facts, verified against the track files ────────────────
 def check_frozen(doc: Doc, sources: list[Path] | None = None) -> list[str]:
-    """Every hard fact in the output must already exist in a track file.
+    """Every hard fact in the output must already exist in a source file.
 
     Checked in that direction on purpose. Listing the facts here instead would
     mean a typo in this file could quietly become the new truth.
 
-    The union of the track files is the widest thing that can be checked here,
-    because this gate does not know which tracks the run selected. Keeping the
-    output's facts to the *primary* track specifically is a rule in the skill,
-    not something this gate can enforce.
+    The sources are input/profile.md plus the union of the track files, which is
+    the widest thing that can be checked here, because this gate does not know
+    which tracks the run selected. Keeping the output's facts to the *primary*
+    track specifically is a rule in the skill, not something this gate can
+    enforce.
     """
-    sources = master_resumes() if sources is None else sources
+    sources = fact_sources() if sources is None else sources
     if not sources:
         return [
-            f'no track files matching {MASTER_GLOB} in {MASTER_DIR}, '
-            f'cannot verify frozen facts'
+            f'no fact sources in {MASTER_DIR}: expected {PROFILE_NAME} and/or '
+            f'files matching {MASTER_GLOB}, cannot verify frozen facts'
+        ]
+    if not any(p.name == PROFILE_NAME for p in sources):
+        return [
+            f'{PROFILE_NAME} not found in {MASTER_DIR}. It holds every employer, '
+            f'date, location, school and contact value, so no fact can be verified '
+            f'without it'
         ]
 
     # Joined with a NUL, which _norm leaves alone, so one file's trailing text
