@@ -338,9 +338,12 @@ allows. One line, no pipes, no module or technology list, under 60 characters. M
 `target-role`. Good: `SAP Solution Architect`. Bad: `SAP Solution Architect | FI/CO &
 Order Management (SD/MM) on ECC 6.0 / HANA | ABAP Development, IDoc & SAP BTP/CPI`.
 
-**Summary.** 60 to 110 words. Years and primary expertise, then the specific platform or
-domain overlap with this JD, then the delivery record that proves it. Lead with what this
-employer is hiring for, not a generic self-description.
+**Summary.** 60 to 110 words, or up to 130 when the posting lists six or more soft
+requirements and the page budget allows. Years and primary expertise, then the specific
+platform or domain overlap with this JD, then the delivery record that proves it. Lead with
+what this employer is hiring for, not a generic self-description. The extra words are for
+competency phrasing that has nowhere else to go, never for a longer technology list; the
+1050-word resume budget is unchanged and still binds.
 
 The summary is also the **only place soft keywords can land**, and they score as their own
 category. Work in up to three of the posting's soft requirements, using the literal strings
@@ -373,8 +376,9 @@ Rendering it is four decisions, in this order:
 2. **Row order.** Most JD-relevant first. Break ties with `track_affinity`, preferring the
    category that names the primary track, then with the order the file lists them in.
 3. **Which values.** Inside each rendered row, keep only what this posting cares about,
-   ordered by JD relevance. 8 to 16 values; a row listing 40 technologies reads as a
-   keyword dump.
+   ordered by JD relevance. 8 to 16 values, or up to 18 on a posting dense enough to ask
+   for them by name; a row listing 40 technologies reads as a keyword dump. Widen a row
+   only for values the posting actually uses, never to spend the allowance.
 4. **Check for repeats.** The file already places each value in exactly one category, so
    rendering it as written cannot repeat a value. Never restore a repeat by copying a value
    into a second row because the posting uses that wording. A resume naming Docker under
@@ -436,10 +440,35 @@ Fix the markdown until they pass. **Never reach for `--no-verify`**; that flag i
 inspecting a work-in-progress layout, not for shipping. If a gate fails, fix only what it
 names and re-run once. Do not re-read the track files to fix a style gate.
 
-Then read once more for what the gates cannot see: every must-have keyword present and
-none more than three times, most relevant experience first, and no sentence that sounds
-like a press release. Facts need no cross-checking any more: `input/profile.md` is their
-only source, and the gate reads it.
+Then read once more for what the gates cannot see: most relevant experience first, and
+no sentence that sounds like a press release. Facts need no cross-checking any more:
+`input/profile.md` is their only source, and the gate reads it.
+
+**Coverage sweep.** The gates count words and rows; they cannot tell whether this posting's
+language reached the page. ATS scoring splits into three categories, so sweep all three,
+once, before delivering. Take the lists captured at Step 2.
+
+| Category | Check | Where it should land |
+|---|---|---|
+| **Hard** | Every must-have technology appears as the posting's literal string | Skills row, and a bullet where `Skills used` allows one |
+| **Soft** | Up to three of the posting's competency phrases appear | Summary, attached to something concrete |
+| **Industry** | The sector, or the nearest honest adjacency, and the posting's process vocabulary appear | Summary and bullets |
+
+Two failure modes to look for specifically:
+
+- **A buried must-have.** A required keyword sitting only in the Technical Skills row is
+  matched but weakly placed. If `input/projects.md` carries it on a `Skills used` line, work
+  it into the bullet for that project. If it does not, leave it in the row alone: that is
+  the evidence rule, not a defect, and Step 8 logs it.
+- **A silent category.** A summary with no competency phrase scores near zero on Soft
+  however strong the bullets are, because Soft has nowhere else to land.
+
+**One revision pass, then stop.** Fix what the sweep names, re-run the gates once, and
+deliver. The sweep may only re-word and re-place material the record already supports.
+It may never add a claim, and it may never narrow the keyword list until the number looks
+better: an unmet requirement is reported at Step 7, not written around. If a second pass
+looks necessary, the gap is in the record, not the wording, and it belongs in
+`data/{slug}/master-resume-gaps.md`.
 
 ## Step 7: Deliver
 
