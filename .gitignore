@@ -1,6 +1,7 @@
 input/*
 !input/master-resume-bone.md
 !input/track-map.json
+!input/First_Horizon_Senior_Engineer_Projects.md
 output_*/
 output/
 .venv

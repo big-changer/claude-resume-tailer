@@ -56,6 +56,16 @@ So, for every must-have and every industry tag:
   exact drift that file exists to stop.
 - Say years of experience **in digits**: "9+ years", never "nine years".
 - No keyword more than three times. Stuffing scores worse than natural placement.
+- **Soft requirements are keywords too, and they are scored separately.** "Excellent written
+  and verbal communication", "strong analytical thinking", "attention to detail" and
+  "eagerness to learn" match as literal strings just as "Spring Boot" does, and the summary
+  is nearly the only place they can appear. A resume that demonstrates collaboration across
+  six bullets without ever writing the word scores zero for it. Take the wording from
+  `input/soft-skills.md`, which also names what may not be claimed.
+- **Industry terms are scored separately as well.** Write the sector the posting names when
+  the record honestly supports it, and the nearest true adjacency when it does not. Never
+  write a domain tag the record cannot stand behind: it is the single most checkable
+  fabrication on the page.
 
 Only claim what the selected track files support. This is about wording what is already
 true in the language the scanner expects, never about adding claims.

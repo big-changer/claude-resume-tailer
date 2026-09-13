@@ -214,6 +214,11 @@ Hold the following, without writing any of it to chat:
   technologies, certifications, domain expertise.
 - The top 15 to 20 ATS keywords, ranked by importance and frequency. Note variants
   ("Kubernetes" / "K8s") so one mention covers both.
+- **Soft requirements, as the exact strings the posting uses**: "excellent written and
+  verbal communication", "strong analytical thinking", "attention to detail", "eagerness to
+  learn", "collaborate with business analysts and stakeholders". These score as their own
+  keyword category and land almost entirely in the summary, so capture the literal wording
+  rather than a paraphrase. `input/soft-skills.md` holds what may be claimed against them.
 - **Role responsibilities**: what the hire would actually spend time doing, as verbs plus
   objects. Take these from the responsibilities and day-to-day sections, not the skills
   list. Step 3 selects source files from these, so they matter more than the keyword list.
@@ -266,13 +271,16 @@ responsibilities genuinely disagree, follow the map and log the disagreement at 
 ## Step 4: Read the sources
 
 **One parallel batch of Read calls: the primary track file, every secondary,
-`input/profile.md` and `input/projects.md`.** Nothing else is read this run.
+`input/profile.md`, `input/projects.md`, `input/soft-skills.md` and `input/keywords.md`.**
+Nothing else is read this run.
 
 | Content | Comes from |
 |---|---|
 | Every fact: employers, titles, dates, locations, education, contacts | **`input/profile.md`**, the only source |
 | Projects, what was built, and every metric | **`input/projects.md`**, the only source |
 | Technical Skills rows | **`input/skill-map.json`**, the only source for labels and values |
+| Soft-skill and competency wording for the summary | **`input/soft-skills.md`**, the only source |
+| Practice and domain wording for bullets | **`input/keywords.md`**, bullets only, never a Technical Skills row |
 | Certificates and open source, Sections 2 and 3 | **the primary track alone** |
 | Behavioural examples, Section 4 | **the primary track alone.** Written per track on purpose, so the wording differs between files by design |
 
@@ -334,6 +342,19 @@ Order Management (SD/MM) on ECC 6.0 / HANA | ABAP Development, IDoc & SAP BTP/CP
 domain overlap with this JD, then the delivery record that proves it. Lead with what this
 employer is hiring for, not a generic self-description.
 
+The summary is also the **only place soft keywords can land**, and they score as their own
+category. Work in up to three of the posting's soft requirements, using the literal strings
+captured at Step 2 and the phrasings `input/soft-skills.md` allows against them. Each must
+be attached to something real: "collaborative" on its own is filler, while "worked the
+validation rules out with the business users who sent the files" carries the same keyword
+and survives a reading. Never assert a trait `input/soft-skills.md` lists under **Not
+claimable**, however plainly the posting asks for it; log the miss at Step 8.
+
+Industry terms belong here too. The sector itself cannot be changed, but name the honest
+overlap: a regional bank is a regulated, audited environment with operations staff as
+internal users, which is the real adjacency to insurance, fintech and enterprise postings.
+Never write a domain tag the record does not support.
+
 **Technical Skills.** Built entirely from `input/skill-map.json`, read at Step 2. Format
 `- **Category Label**: value, value, value`.
 
@@ -362,8 +383,11 @@ Rendering it is four decisions, in this order:
 Several categories carry a `recorded_gaps` line. Honour it: it names what the row may **not**
 say, however hard the posting pushes. `Data & AI` records AI as capability only, so no model
 provider, vector store, framework or AI metric may appear; `Testing` may not name Cypress,
-Playwright, Pact or WireMock; `Methodologies` names no Agile or Scrum. Never add a value to
-close a gap the file declares, and log any gap that cost real JD coverage at Step 8.
+Playwright, Pact or WireMock. `Methodologies` is the one gap that limits placement rather
+than listing: `Agile / Scrum` and the ceremony names may be rendered in the Technical Skills
+row under the `no_invention` rule, but no bullet and no summary sentence may claim to have
+practised or facilitated them. Never add a value to close a gap the file declares, and log
+any gap that cost real JD coverage at Step 8.
 
 **Professional Experience.** Every role from the employment table in `input/profile.md`
 Section 1, real titles unchanged. 4 to 6 bullets each, most JD-relevant first. Build the bullets from the

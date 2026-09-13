@@ -51,10 +51,20 @@ PROFILE_NAME = 'profile.md'
 # and all but one gate, so the suffix is the only thing that tells them apart.
 COVER_SUFFIX = '-cover-letter'
 
+# The job description is archived beside the deliverables as jd.md so the folder
+# records what the resume was written against. It is source material, not a
+# rendered document: no gate applies to it and it is never converted.
+JD_ARCHIVE_NAME = 'jd.md'
+
 
 def is_cover_file(path: Path) -> bool:
     """True when the path names a cover letter rather than a resume."""
     return path.stem.endswith(COVER_SUFFIX)
+
+
+def is_jd_archive(path: Path) -> bool:
+    """True when the path names the archived job description, not a deliverable."""
+    return path.name.lower() == JD_ARCHIVE_NAME
 
 
 def cover_path_for(resume_md: Path) -> Path:

@@ -18,19 +18,39 @@ across every track and drift.
 
 ## 1. All Available Skills
 
-### [Skill Category 1]
+The category labels are a **closed set**, defined once in `input/skill-map.json`. Copy them
+verbatim. Never invent a label for a track, never rename one, never merge or split one:
 
-- [Skill]
-- [Skill]
+- Programming Languages
+- Frameworks & Libraries
+- Databases
+- Cloud & DevOps
+- Tools & Platforms
+- Testing
+- Architecture & Design
+- Data & AI
+- Methodologies
 
-### [Skill Category 2]
+### [One label from the list above]
 
-- [Skill]
-- [Skill]
+- [Value, copied from that label's `values` list in input/skill-map.json]
+- [Value]
 
-Order the categories so the most track-relevant come first. This is an inventory, not a
-shortlist: list everything genuinely claimable for this kind of role, and let the skill
-select against the job description.
+### [The next label]
+
+- [Value]
+
+Order the labels to put the categories this kind of role cares about first, and drop any
+label with nothing this track can claim. This is an inventory, not a shortlist: list
+everything genuinely claimable for this kind of role, and let the skill select against the
+job description.
+
+A value may appear under more than one label here, because which labels a resume renders
+changes per posting. The resume places each value once. This inventory does not.
+
+Close the section by repeating the `recorded_gaps` lines of every label used, so the limits
+travel with the file. A skill that is not in `input/skill-map.json` does not go here: add it
+to that file first, and only once `input/projects.md` records a project behind it.
 
 ---
 

@@ -535,9 +535,11 @@ def resolve_md_path(raw_arg: str) -> Path:
     md_path = (OUTPUT_DIR / arg_path).resolve()
     if md_path.is_dir():
         # An application folder, output/{YYYYMMDD}/{company}-{position}/. It holds
-        # one resume and its cover letter, so the resume is the only sensible
-        # target and the cover letter is picked up alongside it as usual.
-        resumes = [p for p in sorted(md_path.glob('*.md')) if not V.is_cover_file(p)]
+        # one resume, its cover letter and the archived jd.md, so the resume is
+        # the only sensible target and the cover letter is picked up alongside it
+        # as usual.
+        resumes = [p for p in sorted(md_path.glob('*.md'))
+                   if not V.is_cover_file(p) and not V.is_jd_archive(p)]
         if len(resumes) != 1:
             raise ValueError(
                 f'{raw_arg} holds {len(resumes)} resume markdown files; name the one to convert.')
@@ -549,6 +551,10 @@ def resolve_md_path(raw_arg: str) -> Path:
 
     if OUTPUT_DIR.resolve() not in md_path.parents:
         raise ValueError(f'File must be inside output/: {arg_path}')
+    if V.is_jd_archive(md_path):
+        raise ValueError(
+            'jd.md is the archived job description, not a deliverable. '
+            'Name the resume in that folder instead.')
     if not md_path.exists():
         raise FileNotFoundError(f'Markdown file not found: {md_path}')
     return md_path
