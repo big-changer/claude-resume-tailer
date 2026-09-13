@@ -57,7 +57,7 @@ Read this only when one of these conditions actually fires. The normal run never
 | A gate fails | Fix only what it names and re-run once. Do not use `--no-verify`, and do not re-read the track files to fix a style gate |
 | A fact is right in the resume but absent from `input/profile.md` | The gate rejects it. Add it to the profile if it is true, or drop it from the resume. Never satisfy the gate by editing a track file |
 
-## Step 9 questions
+## Step 10 questions
 
 | Scenario | Action |
 |---|---|

@@ -34,17 +34,22 @@ Input:
   input/jd-{slug}.txt             the posting. One per run slug
   input/track-map.json            JD text to track files. Authoritative for which
                                   tracks exist. Read at Step 2, applied at Step 3
+  input/skill-map.json            the closed set of Technical Skills labels and the
+                                  values under each. Authoritative for that section.
+                                  Read at Step 2, applied at Step 5
   input/profile.md                shared and single-source: employers, dates,
                                   locations, education, contacts. The gate reads it
   input/master-resume-{track}.md  per-track: skills, certificates, open source,
                                   behavioural examples. Selected in Step 3
   input/projects.md               the shared project record: what was built, the
                                   skills each project used, and every metric
-  input/quiz-{slug}.txt           optional. Read in Step 9 only, only if the user says yes
+  input/quiz-{slug}.txt           optional. Read in Step 10 only, only if the user says yes
 
 Output:
   output/{YYYYMMDD}/{company}-{position}/{name}.md
   output/{YYYYMMDD}/{company}-{position}/{name}-cover-letter.md
+  output/{YYYYMMDD}/{company}-{position}/jd.md   the posting, archived verbatim
+                                  beside the deliverables. Never converted, never gated
   data/{slug}/new-skills.md            appended after delivery, never asked about
   data/{slug}/master-resume-gaps.md    appended after delivery, never asked about
 ```
@@ -72,8 +77,8 @@ See supporting files, and read them only when the step says to:
 This skill was rewritten because it was slow. The rules below are what made it fast, and
 they matter as much as the content rules.
 
-1. **Batch every read into one message.** The JD and `track-map.json` go together at Step
-   2; the primary track file, every secondary, `input/profile.md` and
+1. **Batch every read into one message.** The JD, `track-map.json` and `skill-map.json`
+   go together at Step 2; the primary track file, every secondary, `input/profile.md` and
    `input/projects.md` go together at Step 4. Never read a file twice in a run; hold what you read.
 2. **One shell command per run.** `python scripts/verify_resume.py` at Step 6 is the only
    one. Everything else is Read, Glob, Grep or Write. Never `ls`, `cat`, `head` or `mkdir`.
@@ -82,8 +87,9 @@ they matter as much as the content rules.
    intermediate summaries of the JD or the track files, no printed plan. Work silently
    from Step 1 to Step 7, then print the report. The analysis in Steps 2 and 3 stays in
    your head; it is never written to chat or to a file.
-4. **Write both output files in one message.** The resume and the cover letter are two
-   Write calls issued together, not two rounds.
+4. **Write all three output files in one message.** The resume, the cover letter and
+   `jd.md` are three Write calls issued together, not three rounds. The JD text is
+   already in hand from Step 2, so archiving it costs no read.
 5. **Write against the CHECKLIST the first time.** Every gate failure costs a full
    read-fix-verify cycle. Check the list before the Write, not after the failure.
 6. **All bookkeeping happens after delivery.** Skill detection and gap logging are Step 8,
@@ -117,8 +123,8 @@ One paragraph, or two at most.
 
 ## Technical Skills
 
-- **SAP Platform**: SAP ECC 6.0, SAP HANA, FI/CO, SD/MM
-- **ABAP and Integration**: ABAP reports, IDoc interfaces, SAP BTP, SAP CPI
+- **Programming Languages**: Java (8, 11, 17), TypeScript, JavaScript, SQL
+- **Frameworks & Libraries**: Spring Boot, Spring Data JPA, Hibernate, Angular, React
 
 ## Professional Experience
 
@@ -163,7 +169,9 @@ Verify this list against the draft **before** the Write call. Each line is a blo
 - [ ] Sections present: Summary, Technical Skills, Professional Experience, Education
 - [ ] Sections absent: Core Competencies, Key Skills, Core Skills, Leadership & Impact,
       Gap Analysis
-- [ ] 8 or fewer skill categories, every label 26 characters or fewer
+- [ ] Every skill label is one of the nine in `input/skill-map.json`, spelled exactly as
+      that file writes it. No invented, renamed or merged label
+- [ ] 6 to 8 skill categories, and no value repeated across two rows
 - [ ] Resume under 1050 words, target roughly 900. Cover letter under 430 words, target
       250 to 400
 - [ ] Headline is one line, under 60 characters, and its distinctive words match `target-role`
@@ -193,8 +201,9 @@ checked. This is the only condition that halts a run. Never read another slug's
 
 ## Step 2: Job description analysis
 
-**Read `input/jd-{slug}.txt` and `input/track-map.json` together, in one batch.** The map is
-needed at Step 3, so reading it here costs no extra round trip.
+**Read `input/jd-{slug}.txt`, `input/track-map.json` and `input/skill-map.json` together,
+in one batch.** The track map is needed at Step 3 and the skill map at Step 5, so reading
+both here costs no extra round trip.
 
 Hold the following, without writing any of it to chat:
 
@@ -223,7 +232,8 @@ select it.
 
 **`input/track-map.json`, read at Step 2, decides this step.** Its `tracks` object is
 authoritative for which track files exist, so a track it does not list has no file and
-cannot be selected. Follow its `rules` object in order:
+cannot be selected. The file is data only; the algorithm is here. Work these steps in order,
+reading the two thresholds from its `rules` object:
 
 1. **`no_fit`.** If any `no_fit.keywords` entry appears in the title or must-haves, use
    `no_fit.fallback_track` as primary with no secondary, log `no_fit.log`, and stop here.
@@ -242,9 +252,12 @@ cannot be selected. Follow its `rules` object in order:
 "enterprise", and `ai` must not match inside "maintain". Multi-word entries match as phrases.
 
 Never more than two tracks. The first is **primary**: it drives the headline, the summary,
-the skill category ordering, and which projects lead. The second contributes skills only,
-and exists to widen Section 1, not to reshape the document. Neither supplies facts: those
-come from `input/profile.md` whatever the selection.
+and which projects lead. The second widens the behavioural and certificate material only,
+not the document's shape. Neither supplies facts, which come from `input/profile.md`
+whatever the selection, and neither supplies the Technical Skills section, which comes from
+`input/skill-map.json` alone. Track selection still orders that section: each category in
+the skill map carries a `track_affinity` list, used to break ties between two categories
+the posting weights equally.
 
 Prefer the map over your own reading of the JD. It encodes what the record actually
 supports, which is not the same as what the title suggests. If the map and the
@@ -259,7 +272,7 @@ responsibilities genuinely disagree, follow the map and log the disagreement at 
 |---|---|
 | Every fact: employers, titles, dates, locations, education, contacts | **`input/profile.md`**, the only source |
 | Projects, what was built, and every metric | **`input/projects.md`**, the only source |
-| Skills, Section 1 | **every selected track**, unioned, primary's wording winning on duplicates |
+| Technical Skills rows | **`input/skill-map.json`**, the only source for labels and values |
 | Certificates and open source, Sections 2 and 3 | **the primary track alone** |
 | Behavioural examples, Section 4 | **the primary track alone.** Written per track on purpose, so the wording differs between files by design |
 
@@ -271,18 +284,18 @@ in exactly one place, so two files cannot disagree about it.
 Each project entry carries a `Tracks` line, a `Skills used` line and a `Measured results`
 line.
 
-**Section 1 is an inventory, not a shortlist.** It lists everything the candidate can
-claim for that kind of role, already ordered so the most track-relevant categories come
-first, and it is deliberately longer than any resume can carry. There is no
-candidate-declared priority list: **select by JD relevance alone**, inside the
-eight-category budget, and let the rest go. An entry matching nothing in this posting does
-not go on the page, however impressive it is. That is how an SAP architect resume ended up
-listing Rust, Scala, Dart and SAS.
+**`input/skill-map.json` is an inventory, not a shortlist.** It lists everything the
+candidate can claim, grouped under nine fixed labels, and it is deliberately longer than any
+resume can carry. **Select by JD relevance alone**, inside the eight-row budget, and let the
+rest go. A value matching nothing in this posting does not go on the page, however
+impressive it is. That is how an SAP architect resume ended up listing Rust, Scala, Dart and
+SAS. Section 1 of the track files stays readable as background, but it no longer sets the
+labels or the values.
 
 **`Skills used` is the evidence line.** A skill listed in a project can be claimed at
-project level: written into a bullet, tied to what was built. A skill itemised in Section 1
-but absent from every `Skills used` line has no project behind it, so it belongs in
-Technical Skills and nowhere else. Never write a bullet around it. The map's caveats and
+project level: written into a bullet, tied to what was built. A skill listed in
+`input/skill-map.json` but absent from every `Skills used` line has no project behind it, so
+it belongs in Technical Skills and nowhere else. Never write a bullet around it. The map's caveats and
 the library's "Recorded scope limits" both exist to catch this.
 
 A project entry may also carry a **`Recorded gaps`** line. That names detail the project
@@ -300,7 +313,8 @@ feeds the report at Step 7 and the gaps log at Step 8. It never reaches the resu
 
 ## Step 5: Generate
 
-Write the resume and cover letter, then issue both Write calls in a single message.
+Write the resume and cover letter, then issue those two Writes together with the
+`jd.md` archive described in Step 7, in a single message.
 
 **Gaps resolve autonomously.** No shortfall stops the run.
 
@@ -320,11 +334,36 @@ Order Management (SD/MM) on ECC 6.0 / HANA | ABAP Development, IDoc & SAP BTP/CP
 domain overlap with this JD, then the delivery record that proves it. Lead with what this
 employer is hiring for, not a generic self-description.
 
-**Technical Skills.** One skills section, six to eight categories. Format
-`- **Category Label**: value, value, value`. Labels 26 characters or fewer, short and
-concrete, named for what this employer cares about ("SAP BASIS and Security", not
-"Enterprise Platform Ecosystem"). Order categories and values by JD relevance. 8 to 16
-values per category; a category listing 40 technologies reads as a keyword dump.
+**Technical Skills.** Built entirely from `input/skill-map.json`, read at Step 2. Format
+`- **Category Label**: value, value, value`.
+
+The nine labels in that file are a **closed set**. Write them verbatim, ampersand and
+capitalisation included. Never invent a label, never rename one to echo the posting's
+wording, never merge two into one, and never split one in two. The point is that the
+section reads the same way on every application instead of inventing a fresh taxonomy per
+posting, which is the single clearest tell that a machine wrote the page.
+
+Rendering it is four decisions, in this order:
+
+1. **Which rows.** Nine categories, eight rows allowed, so at least one is always cut. Drop
+   the categories this posting does not ask for, lowest JD relevance first, until six to
+   eight remain. A category with no JD-relevant value is not rendered at all, whatever the
+   row count: an empty or padded row is worse than a missing one.
+2. **Row order.** Most JD-relevant first. Break ties with `track_affinity`, preferring the
+   category that names the primary track, then with the order the file lists them in.
+3. **Which values.** Inside each rendered row, keep only what this posting cares about,
+   ordered by JD relevance. 8 to 16 values; a row listing 40 technologies reads as a
+   keyword dump.
+4. **Check for repeats.** The file already places each value in exactly one category, so
+   rendering it as written cannot repeat a value. Never restore a repeat by copying a value
+   into a second row because the posting uses that wording. A resume naming Docker under
+   both Cloud & DevOps and Tools & Platforms has failed this step.
+
+Several categories carry a `recorded_gaps` line. Honour it: it names what the row may **not**
+say, however hard the posting pushes. `Data & AI` records AI as capability only, so no model
+provider, vector store, framework or AI metric may appear; `Testing` may not name Cypress,
+Playwright, Pact or WireMock; `Methodologies` names no Agile or Scrum. Never add a value to
+close a gap the file declares, and log any gap that cost real JD coverage at Step 8.
 
 **Professional Experience.** Every role from the employment table in `input/profile.md`
 Section 1, real titles unchanged. 4 to 6 bullets each, most JD-relevant first. Build the bullets from the
@@ -380,9 +419,41 @@ only source, and the gate reads it.
 
 ## Step 7: Deliver
 
-Both files go to `output/{YYYYMMDD}/{company}-{position}/` as `{name}.md` and
-`{name}-cover-letter.md`, each path component lowercased with non-alphanumeric runs
-collapsed to hyphens. The Write tool creates the folder.
+All three files go to `output/{YYYYMMDD}/{company}-{position}/`, each path component
+lowercased with non-alphanumeric runs collapsed to hyphens. The Write tool creates the
+folder.
+
+| File | Contents |
+|---|---|
+| `{name}.md` | the tailored resume |
+| `{name}-cover-letter.md` | the cover letter |
+| `jd.md` | the posting this run was written against, archived verbatim |
+
+**`jd.md`** keeps the application folder self-contained: months later the folder still
+records what the resume was aimed at, without depending on `input/jd-{slug}.txt`, which the
+next run overwrites. Write the header below, then the **unmodified** text of
+`input/jd-{slug}.txt`, byte for byte, from what was read at Step 2.
+
+```markdown
+<!--
+target-company: Accuris
+target-role: SAP Solution Architect
+kind: jd
+source: input/jd-accuris.txt
+run-slug: accuris
+archived: 2026-08-01
+-->
+
+# SAP Solution Architect - Accuris
+
+<the job description, exactly as it appeared in input/jd-{slug}.txt>
+```
+
+This file is source material, not a deliverable. **None of the CONTRACT or CHECKLIST rules
+apply to it:** leave the posting's em dashes, bullet glyphs, brackets and banned phrasing
+exactly as the employer wrote them. Never edit, summarise, reformat or truncate it. The
+verifier never reads it and `convert_resume.py` skips it when resolving a folder, so it
+never affects a gate or a PDF.
 
 Report in chat, not in the files:
 
@@ -406,13 +477,16 @@ Report in chat, not in the files:
   to Section 2 of each track file to include it next run.]
 ```
 
-Then the handoff, with the real path filled in as the literal last line:
+Then the handoff, with the real path filled in. The conversion command is the last line of
+the handoff block, but not the last line of the turn: the Step 9 ATS score goes under it,
+and the Step 10 question under that.
 
 ```
 Resume and cover letter are ready.
 
 - Resume: [path]
 - Cover letter: [path]
+- Job description (archived): [path]
 
 Before submitting:
 1. Verify every achievement and date reads true to you.
@@ -424,6 +498,8 @@ python scripts/convert_resume.py "{YYYYMMDD}/{company}-{position}/{name}"
 That command converts both files: it finds the paired `-cover-letter.md` automatically.
 The user runs it themselves; this skill never runs it for them.
 
+Nothing in this step is printed until the Step 9 checker has already run. See Step 9.
+
 ## Step 8: Deferred logging
 
 The deliverable is done. Now record what would make the next run better, in
@@ -432,7 +508,48 @@ The deliverable is done. Now record what would make the next run better, in
 **This is one Grep call and at most two Writes.** Read `logging.md` for the entry formats
 and the classification rules. Nothing found here changes the files written at Step 7.
 
-## Step 9: Post-delivery questions
+## Step 9: ATS check
+
+The deliverable and the logs are done. Run the `resume-ats-checker` skill against the
+folder just written, in minimal mode:
+
+```
+/resume-ats-checker output/{YYYYMMDD}/{company}-{position} --min
+```
+
+It resolves the resume and `jd.md` from that folder on its own, so pass the folder and
+nothing else.
+
+**Invoke the checker before printing anything from Step 7.** Invoking a skill interrupts
+the turn, so a checker run issued after the summary has been printed puts its score
+*above* the summary, which is the wrong end of the report. The order that works is: write
+the files at Step 7, log at Step 8, invoke the checker here, and only then print the
+Step 7 summary and handoff, followed by the score.
+
+The score is the **last block before the Step 10 question**, on its own under an `**ATS**:`
+label, directly under the handoff's conversion command:
+
+```
+**ATS**: ATS Compatibility: 95%   Keyword Match: 66%  (Hard 67% / Soft 57% / Industry 57%)   [BELOW 80%]
+```
+
+One line, plus at most one sentence naming what held the number down. Nothing else goes
+between it and the question.
+
+**This is a measurement, not a gate.** It runs after Step 7 has already shipped the files,
+and it is read-only by design. Whatever it scores:
+
+- Never edit, regenerate or re-verify the resume or cover letter in response to it
+- Never re-run it a second time hoping for a better number
+- Never expand it to the full report unless the user asks for it by name
+- A score below 80% is reported and left alone. Acting on it is the user's call, and the
+  way to act on it is a fresh run against a revised track file, not a patch to this output
+
+If the checker cannot resolve the pair, say so in one line in that same last position and
+continue to Step 10. A failed check never blocks delivery, which already happened two
+steps ago.
+
+## Step 10: Post-delivery questions
 
 Ask exactly this, as the last line, and wait:
 

@@ -128,7 +128,8 @@
         "Step 6: Verification",
         "Step 7: Deliver and Report",
         "Step 8: Deferred Logging",
-        "Step 9: Post-Delivery Questions"
+        "Step 9: ATS Check (resume-ats-checker --min)",
+        "Step 10: Post-Delivery Questions"
       ],
       "roles": [
         "Full Stack Engineer (fs)",
@@ -213,7 +214,7 @@
         },
         {
           "path": "resume-jd-optimizer/house-style.md",
-          "description": "Human-voice rules, the banned phrase list, literal keyword coverage, and the Step 9 quiz answer format. Read when writing prose or when the human-style gate fails"
+          "description": "Human-voice rules, the banned phrase list, literal keyword coverage, and the Step 10 quiz answer format. Read when writing prose or when the human-style gate fails"
         },
         {
           "path": "resume-jd-optimizer/logging.md",

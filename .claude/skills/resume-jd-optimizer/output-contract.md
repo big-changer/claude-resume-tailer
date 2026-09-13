@@ -35,12 +35,17 @@ the normal case; read this when something about the shape is unclear.
   Gap Analysis. The first three duplicate Technical Skills, the fourth restates the
   experience bullets, and the fifth belongs in chat.
 
-## Why the skill labels are capped at 26 characters
+## Where the skill labels come from
 
-All labels share one column sized to the widest of them, so a single long label pushes
-every value on the page to the right and leaves the short labels sitting in a void. It is a
-layout constraint, not a style preference. "Vendor and SaaS Lifecycle" fits;
-"SaaS Lifecycle and Vendor Management" does not.
+`input/skill-map.json` holds them, as a closed set of nine written verbatim. A run picks six
+to eight of the nine and orders them by relevance to the posting; it never writes a label
+the file does not list. All nine already fit the 26-character cap, so the cap binds only if
+someone adds a tenth.
+
+That cap exists because all labels share one column sized to the widest of them, so a single
+long label pushes every value on the page to the right and leaves the short labels sitting
+in a void. It is a layout constraint, not a style preference. "Vendor and SaaS Lifecycle"
+fits; "SaaS Lifecycle and Vendor Management" does not.
 
 ## Why there is no inline bold
 
@@ -57,10 +62,17 @@ keyword-emphasis pass in this skill.
 |---|---|
 | Resume words | 1050 max, roughly 900 target |
 | Cover letter words | 430 max, 250 to 400 target |
-| Skill categories | 8 max |
+| Skill categories | 8 max, 6 target minimum, drawn from the nine in `input/skill-map.json` |
 | Skill label length | 26 characters max |
 | Resume pages | 4 max in the verifier, 2 in practice |
 | Cover letter pages | 1 |
+
+## The archived job description
+
+The application folder also holds `jd.md`, the posting copied verbatim from
+`input/jd-{slug}.txt` under a `kind: jd` metadata comment. It is not a rendered document:
+no gate runs against it, `convert_resume.py` ignores it when a folder path is passed and
+refuses it when it is named directly. Nothing on this page constrains its content.
 
 ## Cover letter shape
 

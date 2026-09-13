@@ -49,8 +49,11 @@ So, for every must-have and every industry tag:
   (AI)". One mention of each form is enough.
 - **Use the generic category name alongside the product name.** "ServiceNow" is the tool;
   "ITSM" and "IT service desk" are what the scanner looks for.
-- A skill-category label is itself indexed, so make the labels carry keywords:
-  `Vendor Management` beats `Vendor and SaaS Lifecycle`.
+- A skill-category label is itself indexed, but the labels are **not** a place to chase
+  keywords: they are the closed set in `input/skill-map.json` and never change per posting.
+  Keyword coverage is the job of the values on the row, which are selected per posting.
+  Retitling `Databases` to `Data Platform Engineering` because a JD used that phrase is the
+  exact drift that file exists to stop.
 - Say years of experience **in digits**: "9+ years", never "nine years".
 - No keyword more than three times. Stuffing scores worse than natural placement.
 
@@ -65,7 +68,7 @@ to another company has failed the step.
 
 ---
 
-# Step 9: Answering quiz questions
+# Step 10: Answering quiz questions
 
 Application forms ask ten or twenty short-answer questions, and pasting that many into a
 terminal is miserable, so the questions come from `input/quiz-{slug}.txt` rather than chat.
