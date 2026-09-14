@@ -38,7 +38,15 @@ The markdown this reads is not free-form. It must look like this:
     ### Senior Backend Software Engineer | 02/2024 - 03/2026 | Las Vegas, NV
     #### NeoVegas Gaming Systems
 
+    One line on what this role built and for whom.
+
     - One achievement per bullet.
+
+    #### Key Projects
+
+    - Project Name - what it does and what the candidate built in it.
+
+    **Tech Stacks**: Python, FastAPI, PostgreSQL, React, Docker
 
     ## Education
 
@@ -52,8 +60,14 @@ The markdown this reads is not free-form. It must look like this:
     - Meta Back-End Developer Professional Certificate (Python, APIs)
 
 `###` is `Title | dates | location`: the title sets bold on the left, the rest
-sits grey and right-aligned on the same line. `####` is the company or school
-on the line below. Inline `**bold**` is allowed only on a skill label.
+sits grey and right-aligned on the same line. `####` directly under a `###` is
+the company or school; anywhere else it is a sub-heading inside the entry, and
+`Key Projects` is the only one the contract defines. Inline `**bold**` is
+allowed on a skill label and on the `Tech Stacks` label, and nowhere else.
+
+An experience entry is four parts in a fixed order: a one-line summary, the
+achievement bullets, `#### Key Projects` with its projects, and the
+`**Tech Stacks**:` line that closes it. verify_resume.py enforces that shape.
 
 One application is one folder: the resume lives at
 output/{YYYYMMDD}/{company}-{position}/{name}.md and its cover letter sits beside
@@ -164,6 +178,13 @@ ENTRY_TITLE_STYLE = ParagraphStyle(
 ENTRY_SUB_STYLE = ParagraphStyle(
     'EntrySub', fontName=ITALIC, fontSize=10, leading=13, textColor=GREY,
     alignment=TA_LEFT)
+# A `####` line that is not the company under a job title is a sub-heading
+# inside the entry, and "Key Projects" is the only one the contract defines.
+# Drawn bold and black rather than italic grey, because it introduces content
+# instead of naming the employer the reader has already seen.
+SUBHEAD_STYLE = ParagraphStyle(
+    'Subhead', fontName=BOLD, fontSize=10, leading=13, textColor=BLACK,
+    alignment=TA_LEFT, spaceBefore=1.2 * mm, spaceAfter=1.0 * mm)
 # Technical skills are laid out as two aligned columns: the category on the
 # left, its skills on the right. The category column is sized once for the
 # whole section so every row shares one boundary, which is what makes the block
@@ -478,10 +499,10 @@ def build_story(text: str) -> list:
             i += 1
             continue
 
-        m = V.SUBENTRY_RE.match(line)          # stray #### with no ### above it
+        m = V.SUBENTRY_RE.match(line)   # a #### that is not a company line
         if m:
             flush_all()
-            story.append(Paragraph(inline(m.group(1).strip()), ENTRY_SUB_STYLE))
+            story.append(Paragraph(escape_xml(m.group(1).strip()), SUBHEAD_STYLE))
             i += 1
             continue
 

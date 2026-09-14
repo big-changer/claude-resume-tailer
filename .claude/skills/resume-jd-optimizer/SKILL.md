@@ -131,8 +131,17 @@ One paragraph, or two at most.
 ### Senior Full Stack Developer | 02/2024 - 03/2026 | Las Vegas, NV
 #### NeoVegas Gaming Systems
 
+One line on what this role built, for whom, and on what.
+
 - One achievement per bullet.
 - Another achievement.
+
+#### Key Projects
+
+- Player Wallet Service - what it does, and what the candidate built in it.
+- Live Odds Dashboard - same shape, one line.
+
+**Tech Stacks**: Python, FastAPI, PostgreSQL, Redis, React, Docker, AWS (EC2, S3)
 
 ## Education
 
@@ -165,7 +174,13 @@ Verify this list against the draft **before** the Write call. Each line is a blo
 - [ ] No banned AI phrasing: leverage, delve, seamless, robust and scalable, spearhead,
       cutting-edge, showcase, underscore, pivotal, meticulous, synergy, testament to,
       state-of-the-art, at the forefront, furthermore, moreover, not only, myriad, realm of
-- [ ] Inline bold appears **only** as a technical-skill row label. Nowhere else
+- [ ] Inline bold appears **only** as a technical-skill row label or as the
+      `**Tech Stacks**:` label closing an experience entry. Nowhere else
+- [ ] Every experience entry runs summary line, bullets, `#### Key Projects`,
+      `**Tech Stacks**:`, in that order, with nothing after the stack line
+- [ ] Both sub-labels are spelled exactly `Key Projects` and `Tech Stacks`
+- [ ] Every Tech Stacks value is evidenced: it appears on a `Skills used` line of
+      a project belonging to **that** company. Never a `rules.unevidenced` value
 - [ ] Sections present: Summary, Technical Skills, Professional Experience, Education
 - [ ] Sections absent: Core Competencies, Key Skills, Core Skills, Leadership & Impact,
       Gap Analysis
@@ -394,18 +409,80 @@ practised or facilitated them. Never add a value to close a gap the file declare
 any gap that cost real JD coverage at Step 8.
 
 **Professional Experience.** Every role from the employment table in `input/profile.md`
-Section 1, real titles unchanged. 4 to 6 bullets each, most JD-relevant first. Build the bullets from the
-`input/projects.md` entries belonging to that company: the prose says what was built, and
-`Measured results` holds the only numbers that may appear. Bullet shape: what you did, what
-you built or changed, what happened as a result. Strong verb first, a real number where
-`Measured results` has one. Screeners look for about five quantified outcomes; use every real
-number before falling back to qualitative phrasing, and never close the gap by inventing
-one. Leadership belongs in the bullets of the role where it happened, not in its own
+Section 1, real titles unchanged. Each entry is **four parts in a fixed order**, and
+`verify_resume.py` blocks the build if any is missing or out of order:
+
+```markdown
+### Senior Full Stack Software Engineer | 06/2024 - Present | Clayton, MO, USA
+#### Centene
+
+<summary line>
+
+- <achievement bullet>
+- <achievement bullet>
+
+#### Key Projects
+
+- <Project Name> - <what it does and what was built in it>
+
+**Tech Stacks**: <the stack this company's projects actually used>
+```
+
+The point of the shape is that a reader scanning the page finds the same thing in the same
+place under every employer: what the role was, what it achieved, what it shipped, what it
+was built on. Both sub-labels are fixed strings. Never rename them to echo the posting.
+
+**1. Summary line.** One plain sentence, 20 to 35 words, no bullet marker and no bold.
+What this role built, for whom, and on what. It is the entry's headline, so lead with the
+part of the role closest to the posting: the same job reads as platform work on an
+infrastructure JD and as product delivery on a product one. Never a duty list, and never a
+restatement of the document summary.
+
+Good: `Built member and case management services and an internal AI assistant for the
+operations staff running government-sponsored health plans.`
+Bad: `Responsible for full stack development, code review and production support.`
+
+**2. Achievement bullets.** 3 to 5 per role, most JD-relevant first, down from the old 4 to
+6 because the entry now carries three other parts. Build them from the `input/projects.md`
+entries belonging to that company: the prose says what was built, and `Measured results`
+holds the only numbers that may appear. Bullet shape: what you did, what you built or
+changed, what happened as a result. Strong verb first, a real number where `Measured
+results` has one. Screeners look for about five quantified outcomes across the page; use
+every real number before falling back to qualitative phrasing, and never close the gap by
+inventing one. Leadership belongs here, in the role where it happened, not in its own
 section.
 
 Good: `Owned production support for live systems, investigating and resolving complex
 defects, shipping enhancements and improving application responsiveness by 30%.`
 Bad: `Worked on performance improvements.`
+
+**3. Key Projects.** 2 to 3 per role, one line each, as `- Project Name - what it does and
+what the candidate built in it`. Names come verbatim from the `###` headings of
+`input/projects.md` under that company, so the resume and the record use one name for one
+thing. Select by `Tracks` line first, then by which `Skills used` lines match the posting.
+A role with only one recorded project lists one. Never invent a project, never merge two
+into a portmanteau, and never repeat a bullet's sentence here: the bullet says what changed,
+the project line says what the thing is.
+
+A project link is allowed only where `input/projects.md` records a real URL. Write it bare
+(`github.com/org/repo`), never as a markdown link and never as a link glyph: square brackets
+and emoji are both blocking gate failures.
+
+**4. Tech Stacks.** One line, `**Tech Stacks**: value, value, value`, 10 to 18 values, most
+JD-relevant first. This is the one line in the document tied to a specific employer, which
+makes it the easiest place in the whole resume to fabricate, so it has its own evidence
+rule, stricter than the Technical Skills section:
+
+- Every value must appear on a `Skills used` line of a project belonging to **that
+  company**. Technical Skills may render a `rules.unevidenced` value from
+  `input/skill-map.json`; a Tech Stacks line may never, because listing it under an employer
+  claims it was used there.
+- Repeating values already in Technical Skills is correct and expected. The two sections
+  answer different questions: what the candidate can do, and what this job was built on.
+  The `no_duplicate_values` rule governs rows inside Technical Skills, not this line.
+- Write the names as `input/skill-map.json` spells them where it carries the value, so one
+  technology reads the same way everywhere on the page.
+- Order by JD relevance, not by the order `input/projects.md` happens to list them.
 
 **Education and Certifications.** Complete entries only, per the missing-certification
 rule above. Coursework as one plain line under the entry when relevant. Open source and

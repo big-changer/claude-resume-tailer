@@ -12,10 +12,13 @@ ticks off itself does not stop the same defect recurring on the next run.
                          the source of truth
   Gate 3  headline       the role under the name tracks the target job title and
                          is not left over from the master resume
-  Gate 4  emphasis       no inline bold outside the one structural position that
-                         allows it (technical-skill category labels)
+  Gate 4  emphasis       no inline bold outside the two structural positions
+                         that allow it (technical-skill category labels, and the
+                         Tech Stacks label closing an experience entry)
   Gate 5  structure      the file matches the output contract, and is short
-                         enough to land inside its page budget
+                         enough to land inside its page budget. That includes the
+                         four-part shape of an experience entry: a short summary
+                         line, achievement bullets, Key Projects, Tech Stacks
 
 Used as a library by convert_resume.py (which refuses to write a PDF when any
 gate fails) and runnable on its own:
@@ -168,7 +171,18 @@ ENTRY_RE = re.compile(r'^###\s+(.*)$')
 SUBENTRY_RE = re.compile(r'^####\s+(.*)$')
 SECTION_RE = re.compile(r'^##\s+(.*)$')
 SKILL_ROW_RE = re.compile(r'^-\s+\*\*([^*]+)\*\*:\s*(.+)$')
+# The same `**Label**: values` shape without the bullet marker, used as a label
+# line inside an experience entry rather than as a list item. Only one label is
+# allowed in that position: see TECH_STACKS_LABEL.
+ENTRY_LABEL_RE = re.compile(r'^\*\*([^*]+)\*\*:\s*(.+)$')
 DATE_RE = re.compile(r'\b(0[1-9]|1[0-2])/((?:19|20)\d{2})\b')
+
+# An experience entry closes with the stack that company's work was built on,
+# and names its headline projects under a fixed sub-heading. Both labels are
+# fixed strings so the entries read identically down the page; a run that
+# renames one produces a document whose sections no longer line up.
+KEY_PROJECTS_LABEL = 'Key Projects'
+TECH_STACKS_LABEL = 'Tech Stacks'
 
 MONTHS = ['january', 'february', 'march', 'april', 'may', 'june',
           'july', 'august', 'september', 'october', 'november', 'december']
@@ -378,7 +392,12 @@ def check_headline(doc: Doc) -> list[str]:
 
 # ── Gate 4 — emphasis budget ───────────────────────────────────────────────
 def check_emphasis(doc: Doc) -> list[str]:
-    """Inline bold is allowed in exactly one place: a technical-skill label.
+    """Inline bold is allowed in two places, both of them structural labels.
+
+    A technical-skill category label, and the Tech Stacks label that closes an
+    experience entry. Both are the left-hand label of a `label: values` row, so
+    the bold is doing the same job in each: telling the eye where the label ends
+    and the list begins.
 
     Bold buys nothing at the ATS layer, which reads the plain text either way.
     It only spends the reader's attention, so it is spent on structure.
@@ -387,6 +406,16 @@ def check_emphasis(doc: Doc) -> list[str]:
     for n, raw in enumerate(doc.body.splitlines(), 1):
         line = raw.strip()
         if not line or SKILL_ROW_RE.match(line):
+            continue
+        m = ENTRY_LABEL_RE.match(line)
+        if m:
+            label = m.group(1).strip()
+            if label == TECH_STACKS_LABEL:
+                continue
+            problems.append(
+                f'line {n}: bold label {label!r} outside a skill row. The only '
+                f'label line allowed inside an entry is **{TECH_STACKS_LABEL}**:'
+            )
             continue
         if '**' in line:
             snippet = line if len(line) <= 70 else line[:67] + '...'
@@ -414,6 +443,118 @@ MAX_SKILL_ROWS = 8
 # short labels sitting in a void, so label length is a layout constraint rather
 # than a style preference.
 MAX_SKILL_LABEL_CHARS = 26
+
+# An experience entry is four parts in a fixed order: one short summary line,
+# the achievement bullets, the Key Projects sub-heading with its projects, and
+# the Tech Stacks label. The order is the contract; a reader scanning the page
+# finds the same thing in the same position under every employer.
+MIN_ENTRY_BULLETS = 3
+MIN_ENTRY_PROJECTS = 1
+
+
+def experience_blocks(doc: Doc) -> list[tuple[str, list[str]]]:
+    """Each `###` entry under PROFESSIONAL EXPERIENCE, as (title, body lines).
+
+    The company line directly under the title is dropped, since it is part of
+    the heading rather than of the body, and blank lines go with it: the
+    renderer ignores spacing entirely, so it cannot carry meaning here either.
+    """
+    blocks: list[tuple[str, list[str]]] = []
+    title: str | None = None
+    body: list[str] = []
+
+    for raw in doc.sections.get('PROFESSIONAL EXPERIENCE', []):
+        line = raw.strip()
+        m = ENTRY_RE.match(line)
+        if m:
+            if title is not None:
+                blocks.append((title, body))
+            title = m.group(1).split('|')[0].strip()
+            body = []
+            continue
+        if title is None or not line:
+            continue
+        if not body and SUBENTRY_RE.match(line):
+            continue                      # the `#### Company` line
+        body.append(line)
+
+    if title is not None:
+        blocks.append((title, body))
+    return blocks
+
+
+def check_experience_shape(doc: Doc) -> list[str]:
+    """Every experience entry carries the same four parts, in the same order."""
+    problems = []
+    for title, body in experience_blocks(doc):
+        where = f'entry {title!r}'
+        if not body:
+            problems.append(f'{where} has no content under its company line')
+            continue
+
+        heads = [n for n, ln in enumerate(body)
+                 if SUBENTRY_RE.match(ln)
+                 and SUBENTRY_RE.match(ln).group(1).strip() == KEY_PROJECTS_LABEL]
+        stacks = [n for n, ln in enumerate(body)
+                  if ENTRY_LABEL_RE.match(ln)
+                  and ENTRY_LABEL_RE.match(ln).group(1).strip() == TECH_STACKS_LABEL]
+
+        if not body[0].startswith('- ') and not SUBENTRY_RE.match(body[0]) \
+                and not ENTRY_LABEL_RE.match(body[0]):
+            summary_at = 0
+        else:
+            summary_at = None
+            problems.append(
+                f'{where} opens with {body[0][:48]!r}. An entry opens with one '
+                f'plain summary line saying what the role built, before the bullets'
+            )
+
+        if not heads:
+            problems.append(
+                f'{where} has no `#### {KEY_PROJECTS_LABEL}` sub-heading'
+            )
+        elif len(heads) > 1:
+            problems.append(f'{where} has {len(heads)} {KEY_PROJECTS_LABEL} sub-headings')
+
+        if not stacks:
+            problems.append(
+                f'{where} has no `**{TECH_STACKS_LABEL}**: ...` line. It closes the entry'
+            )
+        elif len(stacks) > 1:
+            problems.append(f'{where} has {len(stacks)} {TECH_STACKS_LABEL} lines')
+
+        if not heads or not stacks:
+            continue
+
+        head, stack = heads[0], stacks[0]
+        if stack < head:
+            problems.append(
+                f'{where} puts {TECH_STACKS_LABEL} above {KEY_PROJECTS_LABEL}. '
+                f'The order is summary, bullets, {KEY_PROJECTS_LABEL}, {TECH_STACKS_LABEL}'
+            )
+            continue
+
+        start = 1 if summary_at == 0 else 0
+        achievements = [ln for ln in body[start:head] if ln.startswith('- ')]
+        projects = [ln for ln in body[head + 1:stack] if ln.startswith('- ')]
+
+        if len(achievements) < MIN_ENTRY_BULLETS:
+            problems.append(
+                f'{where} has {len(achievements)} achievement bullet(s) before '
+                f'{KEY_PROJECTS_LABEL}, under the {MIN_ENTRY_BULLETS} minimum'
+            )
+        if len(projects) < MIN_ENTRY_PROJECTS:
+            problems.append(
+                f'{where} lists {len(projects)} project(s) under {KEY_PROJECTS_LABEL}, '
+                f'under the {MIN_ENTRY_PROJECTS} minimum'
+            )
+        trailing = [ln for ln in body[stack + 1:] if ln]
+        if trailing:
+            problems.append(
+                f'{where} continues after its {TECH_STACKS_LABEL} line with '
+                f'{trailing[0][:48]!r}. That line closes the entry'
+            )
+    return problems
 
 
 def check_structure(doc: Doc) -> list[str]:
@@ -462,6 +603,8 @@ def check_structure(doc: Doc) -> list[str]:
                 problems.append(f'entry {title!r} has no `| dates | location` on its heading line')
             if not subtitle:
                 problems.append(f'entry {title!r} has no `#### Company` line under it')
+
+    problems += check_experience_shape(doc)
 
     if words > MAX_WORDS_RESUME:
         problems.append(

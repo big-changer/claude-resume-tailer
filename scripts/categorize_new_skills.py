@@ -3,7 +3,7 @@ import re, json, glob, os, collections, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from skill_atoms import ATOMS, MERGE, DROP_LANGUAGES
 
-ROOT = "F:/Work/Applications/claude-resume-tailer-washington"
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 PY_AI = [
     r"\bpython\b", r"\bdjango\b", r"\bfastapi\b", r"\bflask\b", r"\bbottle\b", r"\baiohttp\b",
