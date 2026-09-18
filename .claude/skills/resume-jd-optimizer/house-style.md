@@ -25,8 +25,10 @@ SKILL.md did not explain why.
 
 Budget is roughly 900 words and never above 1050. Anything that does not earn its place
 against this specific job description comes out. A resume that runs to five pages is not
-read. Cut in this order: the least JD-relevant skill categories, then the weakest bullet in
-each role, then optional sections.
+read. Cut in this order: background skill values the posting does not name, then the least
+JD-relevant skill categories, then the weakest bullet in each role, then optional sections.
+A value this posting names is the last thing to go, because cutting it is what fails the
+keyword screen the rest of the page is written to pass.
 
 ## Literal keyword coverage
 
@@ -44,6 +46,10 @@ So, for every must-have and every industry tag:
 
 - **Write the exact string the JD uses, at least once.** Naming AWS does not cover "cloud".
   Naming LangChain does not cover "artificial intelligence".
+- **A string the record cannot evidence still goes on the page**, in a Technical Skills row
+  and nowhere else. That is the Step 5 absorption rule, and it is what stops the commonest
+  zero of all: the required technology that appears nowhere in the document because no
+  project used it. Listing is not claiming. Claiming needs a `Skills used` line.
 - **Give both the spelled-out form and the acronym** on first use: "Mobile device
   management (MDM)", "Information technology (IT) operations", "Artificial intelligence
   (AI)". One mention of each form is enough.

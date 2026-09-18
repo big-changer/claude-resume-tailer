@@ -41,8 +41,13 @@ Read this only when one of these conditions actually fires. The normal run never
 
 | Scenario | Action |
 |---|---|
-| JD names a tech skill not in any track file | Log it to the new-skills file at Step 8. Do not use it this run. Do not ask |
-| Skill missing but adjacent to a recorded one | Bridge via the closest adjacent skill, else omit and flag in the report and gaps file |
+| JD names a tech skill not in any track file and not in `input/skill-map.json` | Absorb it: render the posting's literal string in the nearest of the nine Technical Skills rows, claim it nowhere else, disclose it at Step 7 and merge it at Step 8. Do not ask |
+| JD names something on the Step 5 exclusion list: a credential, a degree, years of experience, a spoken language, work authorisation, a job title, a soft competency | Not absorbed, not rendered. Report it at Step 7 as unmet and log it. A row is not a place to answer it |
+| Absorbing every named skill would take a row past 20 values, or the page over 1050 words | Cut background values first, then the weakest bullet in the least relevant role, then optional sections. A JD-named value is the last thing to go, and if one still has to go, say so in the report |
+| The posting names a skill that would fit a tenth category | The label set is closed. Place it under the nearest of the nine and move on |
+| Two spellings of one skill, the map's and the posting's | Render the posting's where a scanner would miss the difference (`Spring Boot` is not `FastAPI`), the map's where it would not (`Postgres` / `PostgreSQL`). Never both in two rows |
+| Skill missing but adjacent to a recorded one | The row carries the posting's string; the bullets bridge via the closest adjacent recorded skill. Flag the bridge in the report and the gaps file |
+| An absorbed skill is the whole job, not a detail | Still generate, and still absorb. Say plainly in the report that the central requirement is listed and unevidenced, and log it as a hard mismatch. This is the case where the candidate most needs to see the disclosure before they send it |
 | The candidate clearly does not qualify | Still generate, honestly and without inflation. Log why in the gaps file. Never refuse and never ask |
 | Junior candidate, senior posting | Do not inflate the headline. Use the title without the inflated seniority word and highlight relevant depth |
 | Combination role | Prioritise the primary, keep the secondary visible in skills |

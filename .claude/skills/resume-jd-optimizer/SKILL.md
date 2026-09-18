@@ -14,6 +14,14 @@ two-page resume and a matching cover letter, both of which read as if a person w
 the track files already record. Never invent experience, dates, titles, certifications or
 metrics.
 
+**Third principle: every skill this posting names reaches the page.** A required
+technology the record cannot evidence is still written into the Technical Skills row, as
+the posting's own literal string, because a resume that never contains the word "Java" is
+filtered by the ATS before a human reads it. What evidence controls is *where* a skill may
+appear, not whether it appears at all: an unevidenced skill is listed, never claimed. The
+tiering that enforces that split is at Step 5, and the aim is 100% of the posting's
+required hard skills present on the page.
+
 **Second principle: the deliverable comes first.** The resume and cover letter are written,
 verified and handed over before the skill does any logging, any skill detection, or any
 reporting beyond the summary. Nothing in this workflow stops to ask a question until the
@@ -44,6 +52,8 @@ Input:
   input/projects.md               the shared project record: what was built, the
                                   skills each project used, and every metric
   input/quiz-{slug}.txt           optional. Read in Step 10 only, only if the user says yes
+  scripts/absorb_skills.py        merges this run's absorbed skills into
+                                  input/skill-map.json. Run at Step 8, after delivery
   scripts/resume_date.py          today's date in the resume location's timezone.
                                   Run at Step 1. Its answer is the only date this
                                   run may use, for the folder and the letter alike
@@ -83,9 +93,9 @@ they matter as much as the content rules.
 1. **Batch every read into one message.** The JD, `track-map.json` and `skill-map.json`
    go together at Step 2; the primary track file, every secondary, `input/profile.md` and
    `input/projects.md` go together at Step 4. Never read a file twice in a run; hold what you read.
-2. **Two shell commands per run.** `python scripts/resume_date.py --json` at Step 1 and
-   `python scripts/verify_resume.py` at Step 6. Everything else is Read, Glob, Grep or
-   Write. Never `ls`, `cat`, `head` or `mkdir`. The Write tool creates parent directories
+2. **Three shell commands per run.** `python scripts/resume_date.py --json` at Step 1,
+   `python scripts/verify_resume.py` at Step 6, and `python scripts/absorb_skills.py` at
+   Step 8. Everything else is Read, Glob, Grep or Write. Never `ls`, `cat`, `head` or `mkdir`. The Write tool creates parent directories
    on its own.
 3. **Do not narrate.** No phase announcements, no "now analysing the job description", no
    intermediate summaries of the JD or the track files, no printed plan. Work silently
@@ -96,9 +106,10 @@ they matter as much as the content rules.
    already in hand from Step 2, so archiving it costs no read.
 5. **Write against the CHECKLIST the first time.** Every gate failure costs a full
    read-fix-verify cycle. Check the list before the Write, not after the failure.
-6. **All bookkeeping happens after delivery.** Skill detection and gap logging are Step 8,
-   after the user already has the files. They never gate the deliverable, and their
-   findings are never used in this run's output.
+6. **All bookkeeping happens after delivery.** Gap logging and the skill-map merge are
+   Step 8, after the user already has the files. They never gate the deliverable. This is
+   bookkeeping only: the skills this posting names were already tiered at Step 5 and are
+   already on the page. Step 8 records them for the next run, it does not decide them.
 7. **Never stop to ask.** The one exception is a missing or ambiguous job description at
    Step 1. Uncertainty goes to `data/{slug}/master-resume-gaps.md` at Step 8, not to a
    prompt.
@@ -189,8 +200,16 @@ Verify this list against the draft **before** the Write call. Each line is a blo
 - [ ] Sections absent: Core Competencies, Key Skills, Core Skills, Leadership & Impact,
       Gap Analysis
 - [ ] Every skill label is one of the nine in `input/skill-map.json`, spelled exactly as
-      that file writes it. No invented, renamed or merged label
-- [ ] 6 to 8 skill categories, and no value repeated across two rows
+      that file writes it. No invented, renamed or merged label. An absorbed value goes
+      under the nearest of those nine, never under a tenth label
+- [ ] 6 to 9 skill categories, and no value repeated across two rows
+- [ ] **Every required hard skill the posting names appears literally at least once**,
+      in a Technical Skills row if nothing evidences it, unless the exclusion list at
+      Step 5 holds it out. A required technology missing from the page is a gate failure,
+      not a gap to report
+- [ ] No absorbed or `rules.unevidenced` value appears in a bullet, a Key Projects line,
+      a Tech Stacks line, the summary or the cover letter. The claim-boundary gate checks
+      this one mechanically, so a slip here costs a full fix-verify cycle
 - [ ] Resume under 1050 words, target roughly 900. Cover letter under 430 words, target
       250 to 400
 - [ ] Headline is one line, under 60 characters, and its distinctive words match `target-role`
@@ -254,6 +273,14 @@ Hold the following, without writing any of it to chat:
 - **Job title, exactly as written.** This becomes `target-role` and drives the headline gate.
 - Level, years required, must-have and nice-to-have skills as exact keywords, key
   technologies, certifications, domain expertise.
+- **The JD skill inventory, as literal strings.** Every nameable hard skill the posting
+  uses: language, framework, library, database, platform, cloud service, protocol,
+  standard, regulation, named methodology, tool. Keep the posting's own spelling and its
+  acronym form when it gives one (`Spring Boot`, `Kubernetes (K8s)`, `.NET Core`), and
+  mark each **Required** or **Preferred** from the way the posting frames it. Do not
+  filter this list against the record here. Every entry on it gets a home at Step 5, and
+  filtering it this early is what used to drop a must-have off the page before anything
+  had looked for one.
 - The top 15 to 20 ATS keywords, ranked by importance and frequency. Note variants
   ("Kubernetes" / "K8s") so one mention covers both.
 - **Soft requirements, as the exact strings the posting uses**: "excellent written and
@@ -334,18 +361,21 @@ in exactly one place, so two files cannot disagree about it.
 Each project entry carries a `Tracks` line, a `Skills used` line and a `Measured results`
 line.
 
-**`input/skill-map.json` is an inventory, not a shortlist.** It lists everything the
-candidate can claim, grouped under nine fixed labels, and it is deliberately longer than any
-resume can carry. **Select by JD relevance alone**, inside the eight-row budget, and let the
-rest go. A value matching nothing in this posting does not go on the page, however
-impressive it is. That is how an SAP architect resume ended up listing Rust, Scala, Dart and
-SAS. Section 1 of the track files stays readable as background, but it no longer sets the
-labels or the values.
+**`input/skill-map.json` is an inventory, not a shortlist, and not a ceiling either.** It
+lists what the record already carries, grouped under nine fixed labels, and it is both
+longer than any resume can hold and shorter than some postings ask for. So it cuts both
+ways. **Select by JD relevance alone**, inside the nine-row budget: a value matching nothing
+in this posting does not go on the page however impressive it is, which is how an SAP
+architect resume ended up listing Rust, Scala, Dart and SAS; and a skill this posting
+requires that the map does not list is absorbed rather than dropped, which is how a Java
+posting used to ship a resume with no "Java" on it. Section 1 of the track files stays
+readable as background, but it no longer sets the labels or the values.
 
-**`Skills used` is the evidence line.** A skill listed in a project can be claimed at
-project level: written into a bullet, tied to what was built. A skill listed in
-`input/skill-map.json` but absent from every `Skills used` line has no project behind it, so
-it belongs in Technical Skills and nowhere else. Never write a bullet around it. The map's caveats and
+**`Skills used` is the evidence line, and it decides placement, not presence.** A skill a
+project lists can be claimed at project level: written into a bullet, tied to what was
+built. A skill absent from every `Skills used` line has no project behind it, so it belongs
+in a Technical Skills row and nowhere else, whether the map already carries it or this
+posting brought it in. Never write a bullet around one. The map's caveats and
 the library's "Recorded scope limits" both exist to catch this.
 
 A project entry may also carry a **`Recorded gaps`** line. That names detail the project
@@ -370,7 +400,7 @@ Write the resume and cover letter, then issue those two Writes together with the
 
 | Shortfall | Resolution |
 |---|---|
-| Missing skill with no trace in any track file | Omit. Bridge to a closely adjacent recorded skill where one exists (resume has Kubernetes, JD wants Helm) |
+| Missing skill with no trace in any track file | **Absorb it into a Technical Skills row** as the posting's literal string, and claim it nowhere else. See *Skill tiering* below. Bridge to a closely adjacent recorded skill in the bullets where one exists (record has FastAPI, JD wants Spring Boot) |
 | Missing metric | Honest qualitative phrasing, or a conservative estimate only where surrounding text implies a range. Never invent a number |
 | Missing certification | **Omit the entry entirely.** Never generate a credential, never emit an AI-generated marker, never leave a placeholder |
 | The JD's core requirement is something the candidate lacks | Still generate. Lead with the strongest genuine overlap, do not inflate, log it as a hard mismatch |
@@ -400,8 +430,75 @@ overlap: a regional bank is a regulated, audited environment with operations sta
 internal users, which is the real adjacency to insurance, fintech and enterprise postings.
 Never write a domain tag the record does not support.
 
-**Technical Skills.** Built entirely from `input/skill-map.json`, read at Step 2. Format
-`- **Category Label**: value, value, value`.
+
+**Skill tiering.** Every entry on the Step 2 JD skill inventory falls into exactly one of
+four tiers, and the tier decides **where on the page** the skill may appear, never whether
+it appears. Settle this before writing a line of the Technical Skills section.
+
+| Tier | Test | May appear in |
+|---|---|---|
+| **Evidenced** | on a `Skills used` line in `input/projects.md` | anywhere: bullets, Key Projects, Tech Stacks, Technical Skills, summary, cover letter |
+| **Inventory** | a value in `input/skill-map.json` that no `Skills used` line carries, including every `rules.unevidenced` value | a Technical Skills row, and nowhere else |
+| **Absorbed** | named by this posting, absent from `input/skill-map.json` and from every `Skills used` line | a Technical Skills row under the nearest of the nine labels, and nowhere else |
+| **Excluded** | on the exclusion list below | nowhere on the page. Reported at Step 7, logged at Step 8 |
+
+**Absorbed is the tier this skill used to be missing,** and it is the whole reason the
+Technical Skills section exists as a listing rather than a claim. A required technology the
+record could not evidence used to be logged to `data/{slug}/new-skills.md` after delivery
+and left off the page entirely: a Java posting shipped a resume in which the string "Java"
+never occurred, which an ATS keyword filter rejects before a human reads a line of it.
+Absorbing it puts the posting's own string in the section a screener reads as *what this
+person works with*, while every statement of having **used** it stays off the document.
+
+Absorption rules:
+
+1. **Nearest of the nine labels.** Same judgment `scripts/merge_gap_skills.py` encodes:
+   a language goes under `Programming Languages`, a cloud service under `Cloud & DevOps`,
+   a compliance regime under `Methodologies`, a domain or an architectural pattern under
+   `Architecture & Design`. The label set stays closed. Never open a tenth label, and
+   never rename one to hold an absorbed value.
+2. **The posting's spelling, and its acronym.** Scanners match strings: write
+   `Spring Boot`, `Kubernetes (K8s)`, `.NET Core`, `Azure Data Factory (ADF)` the way the
+   posting writes them. Where `input/skill-map.json` already carries the value under a
+   different wording it is not absorbed at all; it is an inventory value, and the map's
+   spelling wins so the page reads consistently.
+3. **Listed, never claimed.** An absorbed value may not appear in an achievement bullet, a
+   Key Projects line, a `**Tech Stacks**:` line, the summary or the cover letter. Those
+   five places each tie a skill to a named employer, project, outcome or first-person
+   sentence. A Technical Skills row ties it to nothing, which is what makes listing it
+   honest. This is the same boundary `evidence_still_applies` already draws around
+   inventory values, and the claim-boundary gate at Step 6 enforces it: it fails the build
+   on any `rules.unevidenced` value found outside a Technical Skills row.
+4. **Only what this posting names.** Absorption is never padding. A value the posting does
+   not use has no business on the page, and adding one is fabrication with extra steps.
+   Nothing is absorbed from another run, from `data/{slug}/new-skills.md`, or from your own
+   sense of what a role like this usually wants.
+5. **Disclosed and recorded.** Every absorbed value is listed in the Step 7 report under
+   *Listed but not evidenced*, so the candidate knows exactly what they are being asked to
+   speak to in a screen, and merged into `input/skill-map.json` at Step 8 so the next run
+   treats it as an inventory value.
+
+**The exclusion list. Never absorbed, however hard the posting pushes:**
+
+- Certifications, licences, clearances and accreditations. Those are credentials, and the
+  missing-certification rule stands: omit the entry entirely.
+- Degrees, fields of study, institutions.
+- Years of experience, seniority, and every `N+ years of X` phrasing.
+- Spoken languages, work authorisation, location, relocation, travel, on-site expectations.
+- Employer names, customer names, product names of the hiring company, and job titles.
+- Soft requirements and competencies. They land in the summary from `input/soft-skills.md`,
+  which is their own scoring category. A competency phrase in a Technical Skills row reads
+  as a keyword dump and costs more than the match is worth.
+- Anything true of a person rather than of a toolkit: "on-call rotation", "mentored
+  juniors", "ran the incident review". Those need a bullet, and a bullet needs evidence.
+
+An excluded miss is a real gap. It is reported at Step 7 and logged at Step 8 exactly as
+before, and the way to close it is the candidate editing the record, not a row.
+
+**Technical Skills.** Built from `input/skill-map.json`, read at Step 2, plus this run's
+absorbed values. Format `- **Category Label**: value, value, value`. The renderer draws
+each row as one line of text, label and values together, so a scanner reads the row as the
+same single string the markdown carries.
 
 The nine labels in that file are a **closed set**. Write them verbatim, ampersand and
 capitalisation included. Never invent a label, never rename one to echo the posting's
@@ -409,31 +506,43 @@ wording, never merge two into one, and never split one in two. The point is that
 section reads the same way on every application instead of inventing a fresh taxonomy per
 posting, which is the single clearest tell that a machine wrote the page.
 
-Rendering it is four decisions, in this order:
+Rendering it is five decisions, in this order:
 
-1. **Which rows.** Nine categories, eight rows allowed, so at least one is always cut. Drop
-   the categories this posting does not ask for, lowest JD relevance first, until six to
-   eight remain. A category with no JD-relevant value is not rendered at all, whatever the
-   row count: an empty or padded row is worse than a missing one.
-2. **Row order.** Most JD-relevant first. Break ties with `track_affinity`, preferring the
+1. **Coverage first.** Before anything is cut, place every Required and Preferred entry
+   from the Step 2 inventory that is not on the exclusion list: evidenced and inventory
+   values under the label the map gives them, absorbed values under the nearest of the
+   nine. **These placements are not negotiable against any budget below.** Everything a
+   posting does not name is background, and background is what the budgets cut.
+2. **Which rows.** A category holding a value this posting names is rendered. A category
+   holding none of them is not, whatever it would do for the row count: an empty or padded
+   row is worse than a missing one. Six to nine rows; nine only when the posting genuinely
+   reaches all nine labels, which is rare. If a tenth were needed, the label set is still
+   closed, so the value goes under the nearest rendered label instead.
+3. **Row order.** Most JD-relevant first. Break ties with `track_affinity`, preferring the
    category that names the primary track, then with the order the file lists them in.
-3. **Which values.** Inside each rendered row, keep only what this posting cares about,
-   ordered by JD relevance. 8 to 16 values, or up to 18 on a posting dense enough to ask
-   for them by name; a row listing 40 technologies reads as a keyword dump. Widen a row
-   only for values the posting actually uses, never to spend the allowance.
-4. **Check for repeats.** The file already places each value in exactly one category, so
-   rendering it as written cannot repeat a value. Never restore a repeat by copying a value
-   into a second row because the posting uses that wording. A resume naming Docker under
-   both Cloud & DevOps and Tools & Platforms has failed this step.
+4. **Which values.** JD-named values first, in the posting's order of emphasis, then
+   background values by JD relevance to fill the row out. 8 to 16 values, or up to 20 where
+   the posting itself names that many; a row padded past what the posting asks for reads as
+   a keyword dump, and an absorbed value nothing asked for is worse than padding. When the
+   1050-word budget binds, cut in this order: background values, then the weakest bullet in
+   the least relevant role, then optional sections. **Never buy words by dropping a
+   JD-named value.**
+5. **Check for repeats.** The file already places each value in exactly one category, so
+   rendering it as written cannot repeat a value. An absorbed value is placed once, under
+   one label, and the same rule then holds for it. Never restore a repeat by copying a
+   value into a second row because the posting uses that wording. A resume naming Docker
+   under both Cloud & DevOps and Tools & Platforms has failed this step.
 
-Several categories carry a `recorded_gaps` line. Honour it: it names what the row may **not**
-say, however hard the posting pushes. `Data & AI` records AI as capability only, so no model
-provider, vector store, framework or AI metric may appear; `Testing` may not name Cypress,
-Playwright, Pact or WireMock. `Methodologies` is the one gap that limits placement rather
-than listing: `Agile / Scrum` and the ceremony names may be rendered in the Technical Skills
-row under the `no_invention` rule, but no bullet and no summary sentence may claim to have
-practised or facilitated them. Never add a value to close a gap the file declares, and log
-any gap that cost real JD coverage at Step 8.
+Where a category carries a `recorded_gaps` line, it **limits placement, not listing**, and
+the rule the old `Methodologies` gap already stated now governs all of them: a value the
+gap names may be rendered in the Technical Skills row when this posting names it, and no
+bullet, Key Projects line, Tech Stacks line, summary sentence or letter may claim it was
+practised, facilitated or shipped. So `Agile / Scrum` and the ceremony names list without
+a bullet behind them, a vector store or model provider the posting asks for by name lists
+under `Data & AI` and appears in no achievement, and `Cypress` or `Playwright` lists under
+`Testing` and is tied to no project. What a gap still forbids absolutely is inventing a
+value nobody asked for to close it, and any AI or testing **metric** the record does not
+carry. Log any gap that cost real JD coverage at Step 8.
 
 **Professional Experience.** Every role from the employment table in `input/profile.md`
 Section 1, real titles unchanged. Each entry is **four parts in a fixed order**, and
@@ -537,9 +646,18 @@ house style. A letter generic enough to send unmodified to another company has f
 python scripts/verify_resume.py {YYYYMMDD}/{company}-{position}/{name}
 ```
 
-Five blocking gates: human style, frozen facts, headline, emphasis budget, structure and
-length. `convert_resume.py` runs the same gates plus a page-count check and writes no PDF
-if any fails.
+Six blocking gates: human style, frozen facts, headline, emphasis budget, structure and
+length, and **claim boundary**. The last one reads `rules.unevidenced` from
+`input/skill-map.json` and fails the build if any of those values appears outside a
+Technical Skills row: in a bullet, a Key Projects line, a Tech Stacks line, the summary or
+the letter. That is the listed-never-claimed rule, machine-checked, which is what lets the
+page carry the posting's whole keyword set. The header block is exempt, because the
+headline is the target job title and a posting called "Kubernetes Engineer" claims nothing.
+`convert_resume.py` runs the same gates plus a page-count check and writes no PDF if any
+fails.
+
+A claim-boundary failure is fixed by **rewording the sentence, never by deleting the row**:
+the keyword stays on the page where it belongs, and the claim around it goes.
 
 Fix the markdown until they pass. **Never reach for `--no-verify`**; that flag is for
 inspecting a work-in-progress layout, not for shipping. If a gate fails, fix only what it
@@ -555,24 +673,35 @@ once, before delivering. Take the lists captured at Step 2.
 
 | Category | Check | Where it should land |
 |---|---|---|
-| **Hard** | Every must-have technology appears as the posting's literal string | Skills row, and a bullet where `Skills used` allows one |
+| **Hard** | **Every Required technology appears as the posting's literal string, and every Preferred one the exclusion list does not hold out.** Target: all of them | A bullet where `Skills used` allows one, a Technical Skills row otherwise |
 | **Soft** | Up to three of the posting's competency phrases appear | Summary, attached to something concrete |
 | **Industry** | The sector, or the nearest honest adjacency, and the posting's process vocabulary appear | Summary and bullets |
 
-Two failure modes to look for specifically:
+**Hard coverage is the one sweep line that blocks.** Search the draft for each Required
+string. A miss has exactly three legitimate resolutions, and "report it and ship" is no
+longer one of them:
+
+| Why it is missing | Resolution |
+|---|---|
+| Nothing evidences it, and it was never absorbed | Absorb it now, into the nearest rendered row, and re-run the gates |
+| It is on the exclusion list | Correct. Leave it off and report it at Step 7 as an unmet requirement |
+| It is there under the map's wording, not the posting's | Add the posting's string to the row where the two spellings differ enough to miss (`Postgres` / `PostgreSQL` is one string to a scanner, `Spring Boot` / `FastAPI` is not) |
+
+Two placement failures to look for after that:
 
 - **A buried must-have.** A required keyword sitting only in the Technical Skills row is
   matched but weakly placed. If `input/projects.md` carries it on a `Skills used` line, work
-  it into the bullet for that project. If it does not, leave it in the row alone: that is
-  the evidence rule, not a defect, and Step 8 logs it.
+  it into the bullet for that project. If it does not, the row is the right and only home
+  for it: that is the tiering rule, not a defect.
 - **A silent category.** A summary with no competency phrase scores near zero on Soft
   however strong the bullets are, because Soft has nowhere else to land.
 
 **One revision pass, then stop.** Fix what the sweep names, re-run the gates once, and
-deliver. The sweep may only re-word and re-place material the record already supports.
-It may never add a claim, and it may never narrow the keyword list until the number looks
-better: an unmet requirement is reported at Step 7, not written around. If a second pass
-looks necessary, the gap is in the record, not the wording, and it belongs in
+deliver. The pass may place a JD-named string into a row and re-word or re-place material
+the record supports. It may never move an absorbed or inventory value into a bullet, a
+Tech Stacks line, the summary or the letter to improve its placement score, and it may
+never narrow the keyword list until the number looks better. If a second pass looks
+necessary, the gap is in the record, not the wording, and it belongs in
 `data/{slug}/master-resume-gaps.md`.
 
 ## Step 7: Deliver
@@ -624,12 +753,19 @@ Report in chat, not in the files:
 **Tracks used**: [primary (facts source), then any secondary]
 
 ### Coverage
-- Must-have keywords covered: [X/Y]
+- Must-have keywords covered: [X/Y]  ([N] evidenced in bullets, [N] listed in rows only)
 - Nice-to-have keywords covered: [X/Y]
+- Skills absorbed this run: [N, or none]
 - Resume length: [N] words
 
+### Listed but not evidenced
+- [absorbed or inventory value] - [the row it went in]. Listed for the scanner, claimed
+  in no bullet and in no letter. Be ready to say honestly how much of it you have, or
+  strike it before sending
+
 ### Not claimed
-- [keyword] - [why, and what would close it]
+- [keyword] - [why it could not go on the page at all: exclusion-list class, or a
+  credential, and what would close it]
 
 ### Omitted for missing detail
 - [e.g. SAP certification: recorded as held, but no name, module, date or ID. Add those
@@ -662,10 +798,37 @@ Nothing in this step is printed until the Step 9 checker has already run. See St
 ## Step 8: Deferred logging
 
 The deliverable is done. Now record what would make the next run better, in
-`data/{slug}/new-skills.md` and `data/{slug}/master-resume-gaps.md`.
+`data/{slug}/new-skills.md` and `data/{slug}/master-resume-gaps.md`, and fold this run's
+absorbed values into the skill map.
 
-**This is one Grep call and at most two Writes.** Read `logging.md` for the entry formats
-and the classification rules. Nothing found here changes the files written at Step 7.
+**This is one Grep call, at most two Writes, and one shell command.** Read `logging.md`
+for the entry formats and the classification rules. Nothing here changes the files written
+at Step 7.
+
+**Merge the absorbed values into `input/skill-map.json`:**
+
+```
+python scripts/absorb_skills.py --slug {slug} "Programming Languages=Java,Kotlin" "Frameworks & Libraries=Spring Boot"
+```
+
+One `Label=value,value` argument per label, using the label spellings the map already
+uses and the same placements the page rendered. The script is idempotent, adds each value
+to that category and to `rules.unevidenced`, skips anything already present under any
+label, and prints what it changed. `--dry-run` shows the plan without writing.
+
+That is the loop this skill used to leave open: the next posting that names Java finds it
+in the map as an inventory value, so it renders without being absorbed again, and it stays
+barred from bullets by `evidence_still_applies` until a real project carries it on a
+`Skills used` line. Pass only what this run actually rendered. Never feed the script a
+value the resume did not carry, and never feed it an exclusion-list item.
+
+**When the same gap keeps being logged, the fix is the record, not the next run.** A value
+listed on every resume and evidenced by none, or a project still reading
+`Measured results: None recorded`, is what the `resume-project-deepener` skill exists for:
+it works the gaps logs into questions for the candidate and writes their answers into
+`input/projects.md`, after which `scripts/promote_skills.py` lifts the claim bar on
+anything the project record now carries. Never do that work inside this run, and never
+write to `input/projects.md` from this skill.
 
 ## Step 9: ATS check
 
@@ -703,6 +866,9 @@ and it is read-only by design. Whatever it scores:
 - Never expand it to the full report unless the user asks for it by name
 - A score below 80% is reported and left alone. Acting on it is the user's call, and the
   way to act on it is a fresh run against a revised track file, not a patch to this output
+- Hard coverage was already checked and closed at Step 6, so a low Hard number here means
+  the checker read a string the posting uses that Step 2 did not capture. That is worth a
+  line in the gaps log for the next run, not an edit to this one
 
 If the checker cannot resolve the pair, say so in one line in that same last position and
 continue to Step 10. A failed check never blocks delivery, which already happened two
@@ -726,8 +892,12 @@ fallback file, no glob, no request to paste them instead.
 # CORE CONSTRAINTS
 
 **No fabrication.** Never invent experience, dates, companies, titles, certifications or
-metrics. Never claim a JD-only skill; detecting one and logging it is not evidence the
-candidate has it. Reorder, reframe and select from existing content, nothing more.
+metrics. **Never claim a JD-only skill:** a skill the record cannot evidence may be listed
+in a Technical Skills row, which asserts nothing about where it was used, and it may never
+appear in a bullet, a Key Projects line, a Tech Stacks line, the summary or the cover
+letter, which all do. Listing is not claiming, and that distinction is what lets the page
+carry the posting's full keyword set without a sentence on it being untrue. Everything
+else is reorder, reframe and select from existing content.
 
 **Never block.** Produce both deliverables on every run. The sole exception is a missing
 job description, which is a missing input rather than an uncertainty. Uncertainty goes to
@@ -736,8 +906,13 @@ the gaps log at Step 8, not to a prompt.
 **Authenticity.** Do not distort an achievement to fit the JD, and do not oversell impact.
 What the candidate cannot defend in a technical screen does not go on the page.
 
-**Honesty about gaps.** Unmet requirements are reported every run, never hidden behind a
-keyword list narrowed until it scores 100%. A resume that scores 80% honestly beats one
-that scores 100% against keywords the candidate cannot defend.
+**Honesty about gaps.** Full keyword coverage is the target, and disclosure is what keeps
+it honest. Every value the page lists without evidence behind it is named in the Step 7
+report under *Listed but not evidenced*, so the candidate sees exactly what a screener
+will ask them about and can strike any line they would rather not defend. Requirements
+that cannot go on the page at all, the exclusion-list classes and the missing credentials,
+are reported every run. What is never allowed is a keyword list quietly narrowed until the
+number looks better, or an unevidenced skill smuggled into a bullet to place it more
+strongly.
 
 Unusual conditions are in `edge-cases.md`. Read it only when one fires.

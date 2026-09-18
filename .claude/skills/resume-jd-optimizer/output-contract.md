@@ -16,7 +16,7 @@ the normal case; read this when something about the shape is unclear.
 | Entry subtitle | `#### Company` on the next line | italic grey under the title |
 | Entry sub-heading | `#### Key Projects`, anywhere else in an entry | bold black, introduces the lines under it |
 | Entry label | `**Tech Stacks**: values` | body line with a bold label |
-| Skill row | `- **Label**: values` | two-column label and value |
+| Skill row | `- **Label**: values` | one line, bold label then values, wrapped lines hanging to a shared indent |
 | Bullet | `- text` | hanging indent, full width |
 | Prose | a plain line | body paragraph |
 
@@ -24,10 +24,13 @@ the normal case; read this when something about the shape is unclear.
 
 - Dates are always `MM/YYYY - MM/YYYY`. The frozen-facts gate matches them against the
   track files, which write them as month names, so any real date will verify.
-- Write URLs bare, as `linkedin.com/in/handle`, not as markdown links. The renderer turns
-  bare URLs and email addresses into clickable links while leaving the visible text exactly
-  as written, which is what an ATS reads. Square brackets are banned, so `[LinkedIn](url)`
-  fails the gate anyway.
+- Write URLs bare, as `linkedin.com/in/handle`, not as markdown links. In the body the
+  renderer makes bare URLs and email addresses clickable while leaving the visible text
+  exactly as written, which is what an ATS reads. **The contact line is the exception: it
+  is rendered as plain text with no embedded link at all,** because an href there buys a
+  reader nothing the visible string does not already give them and an ATS compatibility
+  check flags embedded hyperlinks. Square brackets are banned, so `[LinkedIn](url)` fails
+  the gate anyway.
 - Blank lines and `---` are ignored by the renderer. Spacing is structural. Do not try to
   control layout from the markdown.
 - No markdown tables. No emoji. No HTML beyond the metadata comment.
@@ -40,9 +43,14 @@ the normal case; read this when something about the shape is unclear.
 ## Where the skill labels come from
 
 `input/skill-map.json` holds them, as a closed set of nine written verbatim. A run picks six
-to eight of the nine and orders them by relevance to the posting; it never writes a label
-the file does not list. All nine already fit the 26-character cap, so the cap binds only if
+to nine of the nine and orders them by relevance to the posting; it never writes a label the
+file does not list. All nine already fit the 26-character cap, so the cap binds only if
 someone adds a tenth.
+
+The **values** on those rows are not a closed set in the same way. They come from the file,
+plus the skills this posting names that the file does not carry, which the skill absorbs
+into the nearest row so the literal string reaches the page. The labels are the fixed part;
+the values are tailored per posting.
 
 That cap exists because all labels share one column sized to the widest of them, so a single
 long label pushes every value on the page to the right and leaves the short labels sitting
@@ -68,9 +76,13 @@ bold black.
 
 The Tech Stacks line has an evidence rule the Technical Skills section does not: every value
 must sit on a `Skills used` line of a project belonging to that company. A Technical Skills
-row may carry a `rules.unevidenced` value from `input/skill-map.json`, because the section
-says what the candidate can do. This line says what one employer's work was built on, so the
-same value there would be a claim about that job.
+row may carry a `rules.unevidenced` value from `input/skill-map.json`, or a value absorbed
+from the posting itself, because the section lists what the candidate works with. This line
+says what one employer's work was built on, so the same value there would be a claim about
+that job. The summary, the bullets, the Key Projects lines and the cover letter claim in the
+same way, and the same rule holds for all of them. The claim-boundary gate in
+`verify_resume.py` enforces it against `rules.unevidenced`, so the build fails rather than
+shipping a claim the record cannot carry.
 
 ## Why there is almost no inline bold
 
@@ -88,7 +100,7 @@ keyword-emphasis pass in this skill.
 |---|---|
 | Resume words | 1050 max, roughly 900 target |
 | Cover letter words | 430 max, 250 to 400 target |
-| Skill categories | 8 max, 6 target minimum, drawn from the nine in `input/skill-map.json` |
+| Skill categories | 9 max, 6 target minimum, drawn from the nine in `input/skill-map.json` |
 | Skill label length | 26 characters max |
 | Resume pages | 4 max in the verifier, 2 in practice |
 | Cover letter pages | 1 |

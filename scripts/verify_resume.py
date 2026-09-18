@@ -15,6 +15,8 @@ ticks off itself does not stop the same defect recurring on the next run.
   Gate 4  emphasis       no inline bold outside the two structural positions
                          that allow it (technical-skill category labels, and the
                          Tech Stacks label closing an experience entry)
+  Gate 6  claim boundary an unevidenced skill-map value may be listed in a
+                         Technical Skills row and claimed nowhere else
   Gate 5  structure      the file matches the output contract, and is short
                          enough to land inside its page budget. That includes the
                          four-part shape of an experience entry: a short summary
@@ -29,6 +31,7 @@ gate fails) and runnable on its own:
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import sys
 from pathlib import Path
@@ -437,7 +440,11 @@ BANNED_SECTIONS = {
     'LEADERSHIP AND IMPACT': 'fold into the experience bullets it restates',
     'GAP ANALYSIS': 'report gaps in chat, not in the deliverable',
 }
-MAX_SKILL_ROWS = 8
+# Nine closed labels live in input/skill-map.json, and a posting that genuinely
+# reaches all nine may render all nine: a required technology dropped for the row
+# budget fails an ATS keyword screen, which costs more than a ninth row does. The
+# word budget below is the real page limit, and it still binds.
+MAX_SKILL_ROWS = 9
 # Skill labels share one column, sized to the widest of them. A single long
 # label therefore pushes every value on the page to the right and leaves the
 # short labels sitting in a void, so label length is a layout constraint rather
@@ -644,6 +651,109 @@ def advise(doc: Doc) -> list[str]:
     return notes
 
 
+# ── Gate 6 — claim boundary: listed is not claimed ─────────────────────────
+# The Technical Skills section lists what the candidate works with, so it may
+# carry a value nothing in the record evidences: the rules.unevidenced set in
+# input/skill-map.json, which now also holds every skill absorbed from a posting
+# so its literal string reaches the page. Every other line of the document ties
+# a skill to an employer, a project, an outcome or a first-person sentence, and
+# so turns the same value into a claim. That boundary is what lets the page
+# carry a posting's full keyword set with nothing untrue on it, which makes it
+# worth a gate rather than a rule someone remembers.
+SKILL_MAP_PATH = MASTER_DIR / 'skill-map.json'
+
+# Below this length a value collides with ordinary prose ("Go") more often than
+# it catches a real claim, so it is left to the reader.
+MIN_CLAIM_CHARS = 3
+
+# Product names that are also ordinary English words. These match as written,
+# so "each customer segment" and "the temporal ordering of events" read as
+# prose while "Segment" and "Temporal" read as the products they name.
+CASE_SENSITIVE_VALUES = frozenset({
+    'segment', 'temporal', 'sentry', 'poetry', 'yarn', 'backstage', 'pinecone',
+})
+
+
+def unevidenced_values(path: Path | None = None) -> list[str]:
+    """rules.unevidenced from the skill map, or [] if it cannot be read.
+
+    A missing or unreadable map disables this gate rather than failing the
+    build: the map is the skill's vocabulary file, not a fact source, and a
+    resume written without one is still verifiable on every other gate.
+    """
+    path = SKILL_MAP_PATH if path is None else path
+    try:
+        with path.open(encoding='utf-8') as fh:
+            data = json.load(fh)
+    except (OSError, ValueError):
+        return []
+    values = data.get('rules', {}).get('unevidenced', [])
+    return [v for v in values if isinstance(v, str) and len(v) >= MIN_CLAIM_CHARS]
+
+
+def _claim_pattern(value: str) -> re.Pattern[str]:
+    """Word-bounded matcher for one skill value.
+
+    Matching is case-insensitive from four characters up, so a lowercased
+    "kubernetes" or "helm" in a bullet is still caught. Below that, and for the
+    product names that double as English words, it matches as written: "dbt"
+    does not match "DBT" in another sense, and "Segment" does not match
+    "customer segment".
+
+    A dot counts as part of the neighbouring token only when a word character
+    follows it, so "Node" does not match inside "Node.js" while "Terraform"
+    still matches at the end of a sentence.
+    """
+    body = r'\s+'.join(re.escape(part) for part in value.split())
+    lead = r'(?<![\w+#])(?<!\w\.)' if value[0].isalnum() else ''
+    trail = r'(?![\w+#])(?!\.\w)' if value[-1].isalnum() else ''
+    ambiguous = value.lower() in CASE_SENSITIVE_VALUES
+    flags = 0 if ambiguous or len(value) < 4 else re.IGNORECASE
+    return re.compile(lead + body + trail, flags)
+
+
+def check_claims(doc: Doc) -> list[str]:
+    values = unevidenced_values()
+    if not values:
+        return []
+    patterns = [(v, _claim_pattern(v)) for v in values]
+
+    problems = []
+    section = None
+    for n, raw in enumerate(doc.body.splitlines(), start=1):
+        line = raw.strip()
+        m = SECTION_RE.match(line)
+        if m:
+            section = m.group(1).strip().upper()
+            continue
+        if not line:
+            continue
+        # The header block: name, the role applied for, and contacts. The
+        # headline is the target job title, which gate 3 requires it to track,
+        # and a posting titled "Kubernetes Engineer" is not a claim to have
+        # shipped Kubernetes. Claims start at the first section.
+        if section is None:
+            continue
+        # The one place listing is allowed. Everything else claims.
+        if section == 'TECHNICAL SKILLS' and SKILL_ROW_RE.match(line):
+            continue
+        for value, pat in patterns:
+            if pat.search(line):
+                where = f'{section.title()}' if section else 'the header'
+                problems.append(
+                    f'line {n}: {value!r} has no project evidence, so it may be '
+                    f'listed in a Technical Skills row but not claimed in '
+                    f'{where}. Move the claim to a skill the record evidences, '
+                    f'or drop the sentence.'
+                )
+
+    if len(problems) > 6:
+        head = problems[:6]
+        head.append(f'... and {len(problems) - 6} more claims of unevidenced skills')
+        return head
+    return problems
+
+
 def verify(text: str, is_cover: bool = False) -> dict[str, list[str]]:
     """Run every gate. Returns gate name -> problems (empty list means pass)."""
     doc = Doc(text, is_cover=is_cover)
@@ -652,6 +762,7 @@ def verify(text: str, is_cover: bool = False) -> dict[str, list[str]]:
         'frozen facts': check_frozen(doc),
         'emphasis budget': check_emphasis(doc),
         'structure & length': check_structure(doc),
+        'claim boundary': check_claims(doc),
     }
     # A cover letter has no headline of its own to retarget.
     gates['headline'] = [] if doc.is_cover else check_headline(doc)

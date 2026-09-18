@@ -34,10 +34,17 @@ data/{slug}/master-resume-gaps.md
 
 ## new-skills.md
 
-JD skills with no match in any track file. Keyword-spotting against a JD is noisy: it
-over-triggers on generic words, on near-duplicates of skills already listed under another
-name, and on technologies the JD mentions in passing. Writing any of that into a track file
-would fabricate a claim, so this is a note to the candidate, never an edit.
+JD skills with no match in any track file, and what the resume did with each one.
+Keyword-spotting against a JD is noisy: it over-triggers on generic words, on
+near-duplicates of skills already listed under another name, and on technologies the JD
+mentions in passing. Writing any of that into a track file would fabricate a claim, so
+this file is a note to the candidate, never an edit to the record.
+
+**What changed:** a skill here is no longer necessarily absent from the resume. Step 5
+absorbs the hard skills this posting named into a Technical Skills row, listed and never
+claimed, so most entries in this file now read as *rendered row-only* and the file's job
+is to tell the candidate which listed skills have nothing behind them yet. Only the
+exclusion-list classes, the credentials and the noise are genuinely off the page.
 
 ### Build the list
 
@@ -64,7 +71,14 @@ would fabricate a claim, so this is a note to the candidate, never an edit.
      an itemisation gap.
    - **Absent from every selected track but present in an unselected one**: a filtering gap.
    - **Not evidenced in any track file**: a genuinely new claim.
-6. Rank must-haves first, then nice-to-haves, ties broken by JD emphasis.
+6. Record the **render status** of each survivor, from the Step 5 tiering:
+   - **rendered row-only (absorbed)**: it went into a Technical Skills row this run, under
+     the label named in the entry, and into no bullet, Tech Stacks line, summary or letter.
+   - **rendered row-only (inventory)**: already a `rules.unevidenced` value in
+     `input/skill-map.json`, so the row carried it without absorption.
+   - **not rendered**: held off the page by the Step 5 exclusion list, or a credential. Say
+     which, because this is the only group that cost keyword coverage.
+7. Rank must-haves first, then nice-to-haves, ties broken by JD emphasis.
 
 If nothing survives, write nothing.
 
@@ -81,7 +95,9 @@ Cloud / DevOps Engineer even on a JD that selected only Full Stack.
 
 - **SAP BTP Integration Suite** - must-have, JD says "3+ years hands-on with BTP
   Integration Suite". Status: not evidenced in any track file.
-  Nearest recorded: SAP CPI, SAP PI/PO. Seen in: Accuris SAP Solution Architect.
+  Render: rendered row-only (absorbed) under Tools & Platforms; merged into
+  input/skill-map.json. Nearest recorded: SAP CPI, SAP PI/PO.
+  Seen in: Accuris SAP Solution Architect.
 - **CDS views** - nice-to-have. Status: evidenced in an input/projects.md entry but not
   itemised in Section 1. Nearest recorded: ABAP, HANA modelling.
   Seen in: Accuris SAP Solution Architect.
@@ -94,15 +110,34 @@ Cloud / DevOps Engineer even on a JD that selected only Full Stack.
 ```
 
 Required per entry: the skill name, must-have or nice-to-have, the status from step 5, the
-nearest thing already recorded, and the JD it was seen in.
+render status from step 6, the nearest thing already recorded, and the JD it was seen in.
+
+### Then merge the absorbed values
+
+```
+python scripts/absorb_skills.py --slug {slug} "Programming Languages=Java,Kotlin" "Frameworks & Libraries=Spring Boot"
+```
+
+Pass only the values whose render status is **rendered row-only (absorbed)**, under the
+same labels the page used. The script adds each one to that category and to
+`rules.unevidenced`, skips anything the map already holds under any label, and prints what
+it changed. `--dry-run` shows the plan and writes nothing.
+
+`rules.unevidenced` is the load-bearing half: it is what keeps the value listable and
+unclaimable next run, until a real project carries it on a `Skills used` line.
 
 ### What this does not do
 
-- A skill logged as **not evidenced in any track file** was correctly omitted from the
-  resume. Logging is a note to the candidate, not a confirmation, and it is never grounds to
-  revise the delivered file.
-- Do not edit any track file to add a detected skill. That decision is the candidate's, and
-  they make it against the file, not mid-run.
+- A skill logged here is **not evidence**. Rendering it in a Technical Skills row states
+  that the candidate works with the category, not that they shipped that technology
+  somewhere, and nothing in this file licenses a bullet, a Tech Stacks line or a sentence
+  in a letter.
+- Logging is never grounds to revise the delivered file. The absorption already happened at
+  Step 5, before delivery.
+- Do not edit any track file, and do not touch `input/projects.md`, to record a detected
+  skill. `input/skill-map.json` is the only file this step writes to, and it holds
+  vocabulary rather than evidence. Moving a skill into the evidenced record is the
+  candidate's decision, made against the file, not mid-run.
 
 ---
 
@@ -135,14 +170,21 @@ The record spans three kinds of file: `input/profile.md` for the shared facts,
 per-track skills, certificates, open source and behavioural examples. Each fact lives in
 exactly one of them, so a correction lands in one place.
 
-**The skill never writes JD-detected skills into a track file.** Those go to
-`new-skills.md` and the candidate applies them by hand. A JD mentioning a skill is not
-evidence the candidate has it.
+**The skill never writes JD-detected skills into a track file or into
+`input/projects.md`.** Those go to `new-skills.md`, and into `input/skill-map.json` as
+unevidenced vocabulary, and the candidate promotes them by hand if they hold. A JD
+mentioning a skill is not evidence the candidate has it, which is exactly why the
+vocabulary file and the evidence files are separate.
 
 **Sync only when the user volunteers a real fact in conversation:** a real metric for a
 previously unquantified achievement, real experience not in the files, a certification with
 issuer and dates, or a correction to a parsed fact. That is a statement by the candidate
 about themselves, which is a different thing from a keyword found in a posting.
+
+**To go looking for those facts deliberately, use `resume-project-deepener`.** It reads
+these two logs, ranks the gaps by what a confirmation would buy on the page, asks the
+candidate in batches, and writes only confirmed answers into `input/projects.md`. It is the
+sanctioned way to grow the evidence file; this skill still never writes to it.
 
 | What the user gave you | Where it goes |
 |---|---|

@@ -3,7 +3,7 @@
     {
       "id": "resume-jd-optimizer",
       "name": "Resume-JD Optimizer",
-      "version": "3.2.0",
+      "version": "3.3.0",
       "description": "Generates a tailored two-page resume and matching cover letter from a job description and the candidate's per-track master resumes, in a plain human-written style, enforced by blocking build gates.",
       "author": "Resume Generator Team",
       "license": "MIT",
@@ -112,9 +112,10 @@
         "Role-Responsibility Track Selection",
         "Shared Project Library with Per-Project Skill Evidence",
         "Single Batched Source Read",
-        "ATS Keyword Coverage",
+        "ATS Keyword Coverage (JD skills absent from the record are absorbed into Technical Skills rows, listed and never claimed)",
         "Cover Letter Generation",
-        "Blocking Quality Gates (scripts/verify_resume.py)",
+        "Blocking Quality Gates (scripts/verify_resume.py), including the claim-boundary gate",
+        "Skill-Map Absorption Merge (scripts/absorb_skills.py)",
         "Deferred Post-Delivery Logging",
         "Master Resume Sync",
         "Post-Delivery Question Answering"
@@ -140,12 +141,13 @@
       ],
       "success_metrics": {
         "length": "Two pages, roughly 900 words, never above 1050",
-        "gates": "All five gates in scripts/verify_resume.py pass without --no-verify",
-        "ats_keywords": "Every must-have JD keyword present, none more than three times",
-        "requirement_coverage": "All MUST-HAVE JD requirements addressed or explicitly reported as unmet",
+        "gates": "All six gates in scripts/verify_resume.py pass without --no-verify",
+        "ats_keywords": "Every must-have JD keyword present as the posting's literal string, none more than three times",
+        "requirement_coverage": "Every required hard skill on the page, evidenced in a bullet or listed in a Technical Skills row; only the exclusion-list classes (credentials, degrees, years, languages, work authorisation, soft competencies) are reported as unmet",
         "factual_accuracy": "Every company, date, location and credential verified against the input/master-resume-*.md track files",
         "emphasis": "Zero inline bold outside technical-skill labels",
-        "production_ready": "Ready for actual job submission with no manual cleanup"
+        "production_ready": "Ready for actual job submission with no manual cleanup",
+        "claim_boundary": "No rules.unevidenced or absorbed value in a bullet, a Key Projects line, a Tech Stacks line, the summary or the cover letter"
       },
       "constraints": [
         "Never fabricate experience, dates, job titles, certifications or metrics",
@@ -153,7 +155,8 @@
         "Never write a metric that is not verbatim in a Measured results line in input/projects.md",
         "Never build an experience bullet around a skill that appears in no project Skills used line",
         "Never leave a bracketed placeholder in the deliverable; omit the entry and report the gap in chat",
-        "Never claim a JD-only skill; detecting one and logging it is not evidence the candidate has it",
+        "Never claim a JD-only skill: it may be listed in a Technical Skills row, and never written into a bullet, a Key Projects line, a Tech Stacks line, the summary or the cover letter",
+        "Never absorb a skill the posting does not name, and never absorb a credential, a degree, a years-of-experience requirement, a spoken language, work authorisation or a soft competency",
         "Never stop to ask the user mid-run; log the uncertainty to data/{slug}/ and finish the deliverable",
         "Facts always come from input/profile.md, the single source; never from a track file",
         "Never satisfy the frozen-facts gate by editing a track file; correct input/profile.md instead",
@@ -225,6 +228,62 @@
           "description": "Unusual conditions only. Not read on a normal run"
         }
       ]
+    },
+    {
+      "id": "resume-project-deepener",
+      "name": "Resume Project Deepener",
+      "version": "1.0.0",
+      "description": "Expands input/projects.md to the full scope of what a senior engineer actually did on each project, by proposing the unrecorded surface layer by layer and writing only what the candidate confirms, then promoting newly evidenced skills out of rules.unevidenced so bullets may claim them.",
+      "author": "Resume Generator Team",
+      "license": "MIT",
+      "tags": [
+        "resume",
+        "evidence",
+        "project-record",
+        "discovery",
+        "career"
+      ],
+      "writes": [
+        "input/projects.md",
+        "input/skill-map.json (rules.unevidenced, via scripts/promote_skills.py)",
+        "input/projects_backup_{YYYYMMDD}.md",
+        "data/proposals/projects-{YYYYMMDD}.md"
+      ],
+      "reads": [
+        "input/projects.md",
+        "input/profile.md",
+        "input/master-resume-*.md",
+        "input/skill-map.json",
+        "data/*/master-resume-gaps.md",
+        "data/*/new-skills.md"
+      ],
+      "supporting_files": {
+        "scope-inventory.md": "The senior-scope catalogue: what a project like this one plausibly touched, layer by layer, with the question that would evidence each item. A question generator, never a fact source."
+      },
+      "phases": [
+        "Step 1: Back up input/projects.md, then read the record and the gaps logs",
+        "Step 2: Rank the gaps by what a confirmation would buy on the page",
+        "Step 3: Derive the unrecorded scope per project from scope-inventory.md",
+        "Step 4: Ask in batches of at most 8, answerable in a few words",
+        "Step 5: Write only confirmed answers, preserving the entry contract",
+        "Step 6: Run scripts/promote_skills.py for whatever the record now evidences",
+        "Step 7: Report what was added, promoted and left unconfirmed"
+      ],
+      "success_metrics": {
+        "provenance": "Every line written traces to an explicit confirmation in the conversation",
+        "metrics": "No figure in Measured results that the candidate did not state",
+        "reversibility": "A dated backup of input/projects.md exists before the first write",
+        "promotion": "Skills the record now evidences are out of rules.unevidenced and claimable in bullets"
+      },
+      "constraints": [
+        "Nothing reaches input/projects.md without an explicit confirmation; proposals stage in data/proposals/",
+        "Never invent a metric, and never round, annualise or convert one the candidate stated",
+        "Never add a technology the candidate did not name, whatever a posting asks for",
+        "Never widen an answer beyond the project it was given about",
+        "Never phrase a question to invite a yes",
+        "Never edit input/profile.md facts or input/master-resume-bone.md",
+        "An asked-and-skipped item is staged and dropped, not asked again next session"
+      ]
     }
   ],
   "repository": {
@@ -233,6 +292,6 @@
     "url": "https://github.com/your-org/resume-generator",
     "skills_directory": ".claude/skills"
   },
-  "version": "2.1.0",
-  "last_updated": "2026-09-09"
+  "version": "3.4.0",
+  "last_updated": "2026-09-18"
 }
