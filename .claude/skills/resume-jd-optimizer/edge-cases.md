@@ -12,6 +12,10 @@ Read this only when one of these conditions actually fires. The normal run never
 | Sessions running at once | Each is invoked with its own slug, reads its own `input/jd-{slug}.txt`, and appends under its own `data/{slug}/`. Read before appending |
 | `data/{slug}/` does not exist | The Write tool creates it. Never skip a log write because the directory is missing |
 | Company name unresolvable from the JD | Use "the target company", same placeholder in the cover letter recipient, and flag it in the report |
+| `scripts/resume_date.py` exits non-zero | Stop and report what it printed, as with a missing JD. It fails only when `input/profile.md` cannot yield a timezone, and a guessed date is worse than no run |
+| The state under "Resume Location" spans two timezones | The script refuses to guess. Add `- **Timezone:** <IANA name>` under that heading in `input/profile.md`, then re-run |
+| The script's date differs from the session date you were told | The script wins, always. That gap is the machine sitting in another timezone than the candidate, which is the whole reason it exists |
+| The resume location moves | Correct section 4 of `input/profile.md`. Nothing else stores a timezone |
 
 ## Track selection
 

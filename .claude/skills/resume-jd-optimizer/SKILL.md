@@ -44,6 +44,9 @@ Input:
   input/projects.md               the shared project record: what was built, the
                                   skills each project used, and every metric
   input/quiz-{slug}.txt           optional. Read in Step 10 only, only if the user says yes
+  scripts/resume_date.py          today's date in the resume location's timezone.
+                                  Run at Step 1. Its answer is the only date this
+                                  run may use, for the folder and the letter alike
 
 Output:
   output/{YYYYMMDD}/{company}-{position}/{name}.md
@@ -80,9 +83,10 @@ they matter as much as the content rules.
 1. **Batch every read into one message.** The JD, `track-map.json` and `skill-map.json`
    go together at Step 2; the primary track file, every secondary, `input/profile.md` and
    `input/projects.md` go together at Step 4. Never read a file twice in a run; hold what you read.
-2. **One shell command per run.** `python scripts/verify_resume.py` at Step 6 is the only
-   one. Everything else is Read, Glob, Grep or Write. Never `ls`, `cat`, `head` or `mkdir`.
-   The Write tool creates parent directories on its own.
+2. **Two shell commands per run.** `python scripts/resume_date.py --json` at Step 1 and
+   `python scripts/verify_resume.py` at Step 6. Everything else is Read, Glob, Grep or
+   Write. Never `ls`, `cat`, `head` or `mkdir`. The Write tool creates parent directories
+   on its own.
 3. **Do not narrate.** No phase announcements, no "now analysing the job description", no
    intermediate summaries of the JD or the track files, no printed plan. Work silently
    from Step 1 to Step 7, then print the report. The analysis in Steps 2 and 3 stays in
@@ -213,6 +217,29 @@ report. More than one, **stop** and ask which. None, **stop**.
 The JD is `input/jd-{slug}.txt`. If it does not exist, **stop** and report the path
 checked. This is the only condition that halts a run. Never read another slug's
 `jd-*.txt`, even when the expected one is missing, and there is no `input/jd.txt` fallback.
+
+### The run date
+
+```
+python scripts/resume_date.py --json
+```
+
+Returns `{"letter": "September 10, 2026", "folder": "20260910", "timezone": "..."}`.
+
+**This is the only date the run may use.** `folder` names the output directory at Step 7
+and `letter` is the date line of the cover letter at Step 5, verbatim, including the
+spelling and the absence of a leading zero on the day.
+
+The date comes from the timezone of the **resume location** recorded in `input/profile.md`
+section 4, not from the machine's clock and not from the session date you were told at the
+start. Those two disagree whenever the machine sits in another timezone than the candidate,
+and a letter dated a day ahead of the candidate's own calendar is a tell. Never substitute
+your own idea of today, even when it looks right, and never reformat what the script
+returns.
+
+If the script exits non-zero it says what `input/profile.md` is missing, usually a
+`- **Timezone:** <IANA name>` line for a state that spans two zones. **Stop** and report
+that, the same as a missing JD.
 
 ## Step 2: Job description analysis
 
@@ -496,7 +523,8 @@ and acronym forms on first use, and say years in digits ("9+ years"). Details an
 worked failure cases are in `house-style.md`.
 
 **Cover letter.** Generated from the finished resume, not from scratch: every claim,
-project and metric must already appear in it. Date, `Hiring Manager` or a named contact,
+project and metric must already appear in it. The `letter` date from Step 1 exactly as the
+script printed it, `Hiring Manager` or a named contact,
 salutation, a 2 to 3 sentence opening naming the exact role with one hook, 1 to 2 body
 paragraphs carrying 2 to 3 concrete achievements chosen against the must-haves, a closing
 with one concrete detail about this company from the JD and an interview call to action,
@@ -550,8 +578,9 @@ looks necessary, the gap is in the record, not the wording, and it belongs in
 ## Step 7: Deliver
 
 All three files go to `output/{YYYYMMDD}/{company}-{position}/`, each path component
-lowercased with non-alphanumeric runs collapsed to hyphens. The Write tool creates the
-folder.
+lowercased with non-alphanumeric runs collapsed to hyphens. `{YYYYMMDD}` is the `folder`
+value from Step 1, so the directory and the letter always carry the same day. The Write
+tool creates the folder.
 
 | File | Contents |
 |---|---|

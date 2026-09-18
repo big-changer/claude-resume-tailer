@@ -104,3 +104,9 @@ refuses it when it is named directly. Nothing on this page constrains its conten
 
 Same header block as the resume plus `kind: cover` in the metadata, then date, recipient,
 salutation, body paragraphs and sign-off as plain prose. No sections, no bullets.
+
+The date line is the `letter` value from `python scripts/resume_date.py --json`, copied
+exactly: `September 10, 2026`, full month name, no leading zero on the day. That script
+reads the timezone of the resume location in `input/profile.md` section 4, so the letter is
+dated by the candidate's calendar rather than by whatever clock the pipeline runs on. No
+gate can catch a wrong date here, which is exactly why it is never typed from memory.
