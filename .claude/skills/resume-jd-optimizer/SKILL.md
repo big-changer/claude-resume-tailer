@@ -54,9 +54,10 @@ Input:
   input/quiz-{slug}.txt           optional. Read in Step 10 only, only if the user says yes
   scripts/absorb_skills.py        merges this run's absorbed skills into
                                   input/skill-map.json. Run at Step 8, after delivery
-  scripts/resume_date.py          today's date in the resume location's timezone.
-                                  Run at Step 1. Its answer is the only date this
-                                  run may use, for the folder and the letter alike
+  scripts/resume_date.py          the letter date (resume location's timezone) and
+                                  the folder date (OS local time). Run at Step 1.
+                                  Its answer is the only date this run may use, for
+                                  the folder and the letter alike
 
 Output:
   output/{YYYYMMDD}/{company}-{position}/{name}.md
@@ -249,12 +250,15 @@ Returns `{"letter": "September 10, 2026", "folder": "20260910", "timezone": "...
 and `letter` is the date line of the cover letter at Step 5, verbatim, including the
 spelling and the absence of a leading zero on the day.
 
-The date comes from the timezone of the **resume location** recorded in `input/profile.md`
-section 4, not from the machine's clock and not from the session date you were told at the
-start. Those two disagree whenever the machine sits in another timezone than the candidate,
-and a letter dated a day ahead of the candidate's own calendar is a tell. Never substitute
-your own idea of today, even when it looks right, and never reformat what the script
-returns.
+The two values come from different clocks, on purpose. `letter` comes from the timezone
+of the **resume location** recorded in `input/profile.md` section 4, not from the
+machine's clock and not from the session date you were told at the start — those two
+disagree whenever the machine sits in another timezone than the candidate, and a letter
+dated a day ahead of the candidate's own calendar is a tell. `folder` comes from the
+machine's own local clock (the OS's `date`), since it is a filesystem detail nobody
+reads as a claim about the candidate's calendar, and should sort alongside whatever else
+the machine writes that day. Never substitute your own idea of today for either value,
+even when it looks right, and never reformat what the script returns.
 
 If the script exits non-zero it says what `input/profile.md` is missing, usually a
 `- **Timezone:** <IANA name>` line for a state that spans two zones. **Stop** and report
@@ -708,8 +712,9 @@ necessary, the gap is in the record, not the wording, and it belongs in
 
 All three files go to `output/{YYYYMMDD}/{company}-{position}/`, each path component
 lowercased with non-alphanumeric runs collapsed to hyphens. `{YYYYMMDD}` is the `folder`
-value from Step 1, so the directory and the letter always carry the same day. The Write
-tool creates the folder.
+value from Step 1, the machine's own local date — it can differ from the letter's date
+when the candidate's timezone and the machine's disagree near midnight; that is expected,
+not a bug to reconcile. The Write tool creates the folder.
 
 | File | Contents |
 |---|---|

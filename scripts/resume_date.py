@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
-"""Today's date in the timezone of the resume location, not the machine's.
+"""Today's date for the cover letter and the output folder, from two clocks.
 
-The cover letter carries a date, and the application folder is named
-`{YYYYMMDD}`. Both should read as the candidate wrote them: the date where the
-resume says the candidate lives, not wherever the machine running this pipeline
-happens to sit. A run from a UTC+9 machine at 08:00 would otherwise date a Saint
-Louis letter a full day ahead of the candidate's own calendar.
+The cover letter carries a date and should read as the candidate wrote it: the
+date where the resume says the candidate lives, not wherever the machine running
+this pipeline happens to sit. A run from a UTC+9 machine at 08:00 would otherwise
+date a Saint Louis letter a full day ahead of the candidate's own calendar.
+
+The application folder is named `{YYYYMMDD}` from the machine's own local clock
+instead — it is a filesystem bookkeeping detail, not something the candidate
+reads, so it should sort and group with whatever else the machine writes that
+day rather than jump to a different date than the OS's own file listing.
 
 The zone comes from `input/profile.md` section 4, "Resume Location":
 
@@ -22,9 +26,9 @@ covers every US state sitting in exactly one zone. States split across two zones
 must carry the explicit line rather than be guessed at.
 
 Usage:
-    python scripts/resume_date.py              -> September 18, 2026
-    python scripts/resume_date.py --folder     -> 20260918
-    python scripts/resume_date.py --json       -> both, plus the zone used
+    python scripts/resume_date.py              -> September 18, 2026 (letter, resume-location zone)
+    python scripts/resume_date.py --folder     -> 20260918 (folder, OS local time)
+    python scripts/resume_date.py --json       -> both, plus the zone used for the letter
 """
 
 from __future__ import annotations
@@ -157,28 +161,30 @@ def now_in(zone: str) -> datetime:
 
 
 def resolve_dates() -> dict[str, str]:
-    """Letter date, folder date and the zone both were taken from."""
+    """Letter date (resume location's zone) and folder date (OS local time)."""
     zone = resolve_zone(read_location())
-    today = now_in(zone)
+    letter_today = now_in(zone)
+    folder_today = datetime.now()
     return {
-        'letter': f'{today.strftime("%B")} {today.day}, {today.year}',
-        'folder': today.strftime('%Y%m%d'),
+        'letter': f'{letter_today.strftime("%B")} {letter_today.day}, {letter_today.year}',
+        'folder': folder_today.strftime('%Y%m%d'),
         'timezone': zone,
     }
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description='Today in the resume location timezone.'
+        description='Cover letter date (resume location timezone) and output '
+                     'folder date (OS local time).'
     )
     group = parser.add_mutually_exclusive_group()
     group.add_argument(
         '--folder', action='store_true',
-        help='print YYYYMMDD, the output folder name'
+        help='print YYYYMMDD, the output folder name, from OS local time'
     )
     group.add_argument(
         '--json', action='store_true',
-        help='print letter date, folder date and zone as JSON'
+        help='print letter date, folder date and the zone used for the letter, as JSON'
     )
     args = parser.parse_args(argv)
 
