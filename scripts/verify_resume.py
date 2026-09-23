@@ -674,11 +674,17 @@ SKILL_MAP_PATH = MASTER_DIR / 'skill-map.json'
 # it catches a real claim, so it is left to the reader.
 MIN_CLAIM_CHARS = 3
 
-# Product names that are also ordinary English words. These match as written,
-# so "each customer segment" and "the temporal ordering of events" read as
-# prose while "Segment" and "Temporal" read as the products they name.
+# Product names and skill values that are also ordinary English words. These
+# match as written, so "each customer segment" and "tracing each failure to its
+# cause" read as prose while "Segment" and "Tracing" read as the skills they
+# name. Absorption keeps adding one-word values from postings, so any new value
+# that is also a common verb or noun belongs here.
 CASE_SENSITIVE_VALUES = frozenset({
     'segment', 'temporal', 'sentry', 'poetry', 'yarn', 'backstage', 'pinecone',
+    'tracing', 'controls', 'dynamics', 'estimation', 'perception', 'manipulation',
+    'simulation', 'caching', 'alerting', 'runbooks', 'evals', 'authentication',
+    'localization', 'virtualization', 'hypervisors', 'codemods', 'cursor',
+    'claude', 'sage', 'helm', 'copilot', 'windsurf', 'gemini', 'agile',
 })
 
 
@@ -697,6 +703,34 @@ def unevidenced_values(path: Path | None = None) -> list[str]:
         return []
     values = data.get('rules', {}).get('unevidenced', [])
     return [v for v in values if isinstance(v, str) and len(v) >= MIN_CLAIM_CHARS]
+
+
+def evidenced_values(path: Path | None = None) -> list[str]:
+    """Every skill-map value NOT on rules.unevidenced: the record carries these."""
+    path = SKILL_MAP_PATH if path is None else path
+    try:
+        with path.open(encoding='utf-8') as fh:
+            data = json.load(fh)
+    except (OSError, ValueError):
+        return []
+    unevidenced = {v.lower() for v in data.get('rules', {}).get('unevidenced', [])}
+    return [v for cat in data.get('categories', []) for v in cat.get('values', [])
+            if isinstance(v, str) and v.lower() not in unevidenced]
+
+
+def _shadowing_values(unevidenced: list[str], evidenced: list[str]) -> list[re.Pattern[str]]:
+    """Evidenced values that contain an unevidenced one, longest first.
+
+    "Spring" is unevidenced while "Spring Boot" is evidenced, so a bullet naming
+    Spring Boot would otherwise be flagged for claiming Spring. These patterns
+    blank out the evidenced value before the unevidenced ones are searched for.
+    """
+    patterns = [_claim_pattern(v) for v in unevidenced]
+    shadows = [v for v in evidenced
+               if any(p.search(v) and p.pattern != _claim_pattern(v).pattern
+                      for p in patterns)]
+    shadows.sort(key=len, reverse=True)
+    return [re.compile(_claim_pattern(v).pattern, re.IGNORECASE) for v in shadows]
 
 
 def _claim_pattern(value: str) -> re.Pattern[str]:
@@ -725,26 +759,38 @@ def check_claims(doc: Doc) -> list[str]:
     if not values:
         return []
     patterns = [(v, _claim_pattern(v)) for v in values]
+    shadows = _shadowing_values(values, evidenced_values())
 
     problems = []
     section = None
+    in_header = False
     for n, raw in enumerate(doc.body.splitlines(), start=1):
         line = raw.strip()
         m = SECTION_RE.match(line)
         if m:
             section = m.group(1).strip().upper()
             continue
-        if not line:
-            continue
         # The header block: name, the role applied for, and contacts. The
         # headline is the target job title, which gate 3 requires it to track,
         # and a posting titled "Kubernetes Engineer" is not a claim to have
-        # shipped Kubernetes. Claims start at the first section.
-        if section is None:
+        # shipped Kubernetes. A resume's claims start at the first section; a
+        # cover letter has no sections, so its claims start after the header.
+        if line.startswith('# ') and section is None:
+            in_header = True
+            continue
+        if not line:
+            if in_header:
+                in_header = False
+                if doc.is_cover:
+                    section = 'LETTER'
+            continue
+        if section is None or in_header:
             continue
         # The one place listing is allowed. Everything else claims.
         if section == 'TECHNICAL SKILLS' and SKILL_ROW_RE.match(line):
             continue
+        for shadow in shadows:
+            line = shadow.sub(' ', line)
         for value, pat in patterns:
             if pat.search(line):
                 where = f'{section.title()}' if section else 'the header'

@@ -208,29 +208,18 @@ ENTRY_SUB_STYLE = ParagraphStyle(
 SUBHEAD_STYLE = ParagraphStyle(
     'Subhead', fontName=BOLD, fontSize=10, leading=13, textColor=BLACK,
     alignment=TA_LEFT, spaceBefore=1.2 * mm, spaceAfter=1.0 * mm)
-# Technical skills are laid out as two aligned columns: the bold category on
-# the left, its skills on the right. The category column is sized once for the
-# whole section so every row shares one boundary, which is what makes the block
-# read as a table rather than as a run of wrapped sentences.
+# Technical skills are one single-column paragraph per row: the bold category,
+# a colon, then its skills, with wrapped lines hanging under the first. This
+# is the most parser-safe shape there is. The earlier two-column layout drew
+# the category and its skills side by side, which some older ATS parsers read
+# column by column, detaching the skills from their category.
 #
-# This was briefly a single hanging-indented paragraph per row, which lost the
-# bold on the category (the row regex strips the asterisks before the label
-# reaches the renderer, so inline() had nothing to embolden) and ran the label
-# into its values. The two-column form is back because that is the shape the
-# candidate signs off on; it still draws label-then-values in reading order,
-# so a text extractor sees the category immediately followed by its skills.
-SKILL_LABEL_STYLE = ParagraphStyle(
-    'SkillLabel', fontName=BOLD, fontSize=10, leading=13, textColor=BLACK,
-    alignment=TA_LEFT)
-SKILL_VALUE_STYLE = ParagraphStyle(
-    'SkillValue', fontName=ROMAN, fontSize=10, leading=13, textColor=BODY,
-    alignment=TA_LEFT)
-SKILL_GUTTER = 4 * mm
-SKILL_ROW_GAP = 1.6 * mm
-# Bounds on the category column. Too narrow and long categories wrap to three
-# lines beside a two-line value; too wide and the skills column is squeezed.
-SKILL_LABEL_MIN = 0.20
-SKILL_LABEL_MAX = 0.32
+# The bold is built here with explicit markup rather than through inline(),
+# because the row regex strips the markdown asterisks before the label arrives.
+SKILL_ROW_STYLE = ParagraphStyle(
+    'SkillRow', fontName=ROMAN, fontSize=10, leading=13, textColor=BODY,
+    alignment=TA_LEFT, leftIndent=4 * mm, firstLineIndent=-4 * mm)
+SKILL_ROW_GAP = 1.2 * mm
 
 # No PDF tables anywhere in this renderer, by design. Every flowable draws its
 # text in reading order, so that is the order the extracted text comes out in.
@@ -394,64 +383,14 @@ def entry_heading(title: str, meta_parts: list[str], subtitle: str) -> list:
     ])]
 
 
-class SkillRow(Flowable):
-    """One category and its skills, drawn as two aligned columns.
-
-    Still not a PDF table. The two columns are two paragraphs placed by hand,
-    and the label is drawn before its values, so the extracted text stays in
-    reading order -- "Databases" immediately followed by the skills that belong
-    to it -- which is what a keyword scanner reads. A real table would let a
-    parser walk the right column on its own and detach the skills from their
-    category. The label arrives without its markdown asterisks (the row regex
-    strips them), so its weight comes from SKILL_LABEL_STYLE, not from inline().
-    """
-
-    def __init__(self, label: str, value: str, label_width: float):
-        super().__init__()
-        self.label_para = Paragraph(inline(label, link=False), SKILL_LABEL_STYLE)
-        self.value_para = Paragraph(inline(value), SKILL_VALUE_STYLE)
-        self.label_width = label_width
-        self._width = AVAIL
-        self._label_height = 0.0
-        self._value_height = 0.0
-        self._label_width_used = label_width
-
-    def wrap(self, availWidth, availHeight):
-        self._width = availWidth
-        label_w = min(self.label_width, availWidth * SKILL_LABEL_MAX)
-        value_w = availWidth - label_w - SKILL_GUTTER
-        _, self._label_height = self.label_para.wrap(label_w, availHeight)
-        _, self._value_height = self.value_para.wrap(value_w, availHeight)
-        self._label_width_used = label_w
-        return availWidth, max(self._label_height, self._value_height)
-
-    def draw(self):
-        height = max(self._label_height, self._value_height)
-        # Both columns hang from the same top edge, so the category sits level
-        # with the first line of its skills however far the skills wrap.
-        self.label_para.drawOn(self.canv, 0, height - self._label_height)
-        self.value_para.drawOn(
-            self.canv, self._label_width_used + SKILL_GUTTER,
-            height - self._value_height)
-
-
-def skill_column_width(rows: list[tuple[str, str]]) -> float:
-    """Width of the category column: the widest category, within bounds."""
-    widest = max(
-        (stringWidth(label, BOLD, SKILL_LABEL_STYLE.fontSize) for label, _ in rows),
-        default=0)
-    return max(min(widest + SKILL_GUTTER, AVAIL * SKILL_LABEL_MAX),
-               AVAIL * SKILL_LABEL_MIN)
-
-
 def skill_block(rows: list[tuple[str, str]]) -> list:
-    """The whole technical skills block, every row sharing one column boundary."""
-    label_width = skill_column_width(rows)
+    """The technical skills block: one "Label: values" paragraph per row."""
     block: list = []
     for index, (label, value) in enumerate(rows):
         if index:
             block.append(Spacer(1, SKILL_ROW_GAP))
-        block.append(SkillRow(label, value, label_width))
+        markup = f'<b>{escape_xml(label)}:</b> {inline(value)}'
+        block.append(Paragraph(markup, SKILL_ROW_STYLE))
     return block
 
 

@@ -19,8 +19,8 @@ Run:
         "Programming Languages=Java,Kotlin" "Frameworks & Libraries=Spring Boot"
     python scripts/absorb_skills.py --dry-run "Databases=Oracle"
 
-Separate values with commas. A value containing a comma of its own, like
-"AWS (EC2, S3)", is passed as its own argument instead.
+Separate values with commas. Commas inside parentheses belong to the value, so
+"Data & AI=ETL (Extract, Transform, Load),Airflow" adds two values, not four.
 
 There is a second, opposite case. A skill the candidate confirmed into
 input/projects.md may be missing from this file altogether, so no resume can
@@ -76,6 +76,23 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     return ap.parse_args(argv)
 
 
+def split_values(values: str) -> list[str]:
+    """Split on commas that are not inside parentheses."""
+    out, depth, current = [], 0, []
+    for ch in values:
+        if ch == '(':
+            depth += 1
+        elif ch == ')':
+            depth = max(depth - 1, 0)
+        if ch == ',' and depth == 0:
+            out.append(''.join(current))
+            current = []
+        else:
+            current.append(ch)
+    out.append(''.join(current))
+    return [v.strip() for v in out if v.strip()]
+
+
 def split_placements(raw: list[str]) -> list[tuple[str, list[str]]]:
     out: list[tuple[str, list[str]]] = []
     for item in raw:
@@ -84,7 +101,7 @@ def split_placements(raw: list[str]) -> list[tuple[str, list[str]]]:
                 f'not a placement: {item!r}. Expected "Label=value,value".'
             )
         label, _, values = item.partition('=')
-        vals = [v.strip() for v in values.split(',') if v.strip()]
+        vals = split_values(values)
         if not vals:
             raise SystemExit(f'no values given for label {label.strip()!r}')
         out.append((label.strip(), vals))

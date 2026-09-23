@@ -229,6 +229,10 @@ Verify this list against the draft **before** the Write call. Each line is a blo
 - [ ] The soft sweep at Step 6 has been run: every role-shape phrase the posting uses that
       is literally true of the record ("individual contributor", "early-stage startup",
       "small team", "remote") is on the page
+- [ ] The summary ends with the target-industry line: interest in the posting's sector in
+      its own words, never a claim of experience, and no skill-map value in it
+- [ ] No absorbed or inventory value appears anywhere in the cover letter body, not even
+      in a sentence admitting the gap. The claim-boundary gate reads the letter
 - [ ] Headline is one line, under 60 characters, and its distinctive words match `target-role`
 - [ ] Every company, date, location, school and contact value appears verbatim in
       `input/profile.md`
@@ -420,16 +424,19 @@ allows. One line, no pipes, no module or technology list, under 60 characters. M
 `target-role`. Good: `SAP Solution Architect`. Bad: `SAP Solution Architect | FI/CO &
 Order Management (SD/MM) on ECC 6.0 / HANA | ABAP Development, IDoc & SAP BTP/CPI`.
 
-**Summary.** 60 to 110 words, or up to 130 when the posting lists six or more soft
-requirements and the page budget allows. Years and primary expertise, then the specific
+**Summary.** 60 to 110 words, or up to 140 when the posting lists six or more soft
+requirements and the page budget allows, the target-industry line included. Years and primary expertise, then the specific
 platform or domain overlap with this JD, then the delivery record that proves it. Lead with
 what this employer is hiring for, not a generic self-description. The extra words are for
 competency phrasing that has nowhere else to go, never for a longer technology list; the
 1050-word resume budget is unchanged and still binds.
 
 The summary is also the **only place soft keywords can land**, and they score as their own
-category. Work in up to five of the posting's soft requirements, using the literal strings
-captured at Step 2 and the phrasings `input/soft-skills.md` allows against them. Each must
+category. Work in up to six of the posting's soft requirements, using the literal strings
+captured at Step 2 and the phrasings `input/soft-skills.md` allows against them. Check
+every entry in that file against the posting, not only the obvious ones: autonomy,
+pragmatism, product sense, customer focus, working through ambiguity and explaining
+tradeoffs are all evidenced, and postings phrase them a dozen ways. Each must
 be attached to something real: "collaborative" on its own is filler, while "worked the
 validation rules out with the business users who sent the files" carries the same keyword
 and survives a reading. Never assert a trait `input/soft-skills.md` lists under **Not
@@ -456,6 +463,32 @@ framed at the level the record supports ("healthcare technology exposure from an
 internship"). Generic workflow nouns the posting uses for its own work (`workflow`,
 `stakeholders`, `operations`) are industry points too, and bridge honestly onto recorded
 work.
+
+**Target-industry line.** End the summary with one sentence, 12 to 25 words, stating what
+the candidate wants to bring to this posting's sector, in the posting's own industry
+strings. It is the only honest home for a sector the record has never touched, and
+industry terms score as their own category.
+
+Good: `Looking to bring that production discipline to healthcare supply chain software and
+the hospital teams who depend on it.`
+Bad: `Experienced in healthcare supply chain software.` That claims experience.
+
+Rules for the line:
+
+- **Interest, never experience.** Use "looking to bring", "keen to apply", "wants to
+  build for". Never "experienced in", "background in", "worked in" or any past tense
+  about the sector.
+- **Two to four of the posting's own sector and domain strings**, taken from its industry
+  tags, company description and responsibilities: `telehealth`, `clean energy finance`,
+  `marina operations`, `e-commerce`, `product intelligence`. The sector, the customer and
+  the product category, not technologies.
+- **No absorbed or inventory value.** A technology in this sentence is a claim, and the
+  claim-boundary gate fails it. The sector words are not skill-map values and pass.
+- **Tied to something the summary already said**, "that production discipline", "the
+  same automation habit", so it reads as a conclusion rather than a bolted-on keyword
+  list.
+- **Once.** The sector strings do not also go into bullets, which are about recorded
+  work.
 
 
 **Skill tiering.** Every entry on the Step 2 JD skill inventory falls into exactly one of
@@ -749,6 +782,12 @@ Technical Skills row: in a bullet, a Key Projects line, a Tech Stacks line, the 
 the letter. That is the listed-never-claimed rule, machine-checked, which is what lets the
 page carry the posting's whole keyword set. The header block is exempt, because the
 headline is the target job title and a posting called "Kubernetes Engineer" claims nothing.
+Everything in the letter after its header is checked, **including sentences that deny
+experience**: "I have not used Terraform" still names Terraform. When the letter admits a
+gap, describe the kind of tool ("the configuration-management tooling in your stack")
+rather than naming it. An evidenced value that contains an unevidenced one is not
+flagged ("Spring Boot" does not trip "Spring"), and common-word values such as
+"tracing" or "caching" only match when capitalized as the skill name.
 `convert_resume.py` runs the same gates plus a page-count check and writes no PDF if any
 fails.
 
@@ -783,8 +822,8 @@ once, before delivering. Take the lists captured at Step 2.
 | Category | Check | Where it should land |
 |---|---|---|
 | **Hard** | **Every Required technology appears as the posting's literal string, and every Preferred one the exclusion list does not hold out.** Target: all of them | A bullet where `Skills used` allows one, a Technical Skills row otherwise |
-| **Soft** | Up to five of the posting's competency phrases appear, plus every role-shape phrase the record makes literally true ("individual contributor", "early-stage startup") | Summary, attached to something concrete |
-| **Industry** | The posting's own sector string wherever the record has an honest adjacency, the nearest adjacency otherwise, and the posting's process vocabulary (`workflow`, `stakeholders`, `production reliability`) | Summary and bullets |
+| **Soft** | Up to six of the posting's competency phrases appear, plus every role-shape phrase the record makes literally true ("individual contributor", "early-stage startup") | Summary, attached to something concrete |
+| **Industry** | The posting's own sector string wherever the record has an honest adjacency, the nearest adjacency otherwise, the posting's process vocabulary (`workflow`, `stakeholders`, `production reliability`), and the target-industry line closing the summary | Summary and bullets |
 
 **Hard coverage is the one sweep line that blocks.** Search the draft for each Required
 string. A miss has exactly three legitimate resolutions, and "report it and ship" is no
