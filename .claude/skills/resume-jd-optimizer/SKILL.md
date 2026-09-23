@@ -98,9 +98,10 @@ they matter as much as the content rules.
 1. **Batch every read into one message.** The JD, `track-map.json` and `skill-map.json`
    go together at Step 2; `input/master-resume.md`, `input/profile.md` and
    `input/projects.md` go together at Step 4. Never read a file twice in a run; hold what you read.
-2. **Three shell commands per run.** `python scripts/resume_date.py --json` at Step 1,
-   `python scripts/verify_resume.py` at Step 6, and `python scripts/absorb_skills.py` at
-   Step 8. Everything else is Read, Glob, Grep or Write. Never `ls`, `cat`, `head` or `mkdir`. The Write tool creates parent directories
+2. **Four shell commands per run.** `python scripts/resume_date.py --json` at Step 1,
+   `python scripts/verify_resume.py` and then `python scripts/convert_resume.py` at Step 6
+   (the second is the page-fit check, see *Page fit*), and `python scripts/absorb_skills.py`
+   at Step 8. Everything else is Read, Glob, Grep or Write. Never `ls`, `cat`, `head` or `mkdir`. The Write tool creates parent directories
    on its own.
 3. **Do not narrate.** No phase announcements, no "now analysing the job description", no
    intermediate summaries of the JD or the master resume, no printed plan. Work silently
@@ -217,6 +218,17 @@ Verify this list against the draft **before** the Write call. Each line is a blo
       this one mechanically, so a slip here costs a full fix-verify cycle
 - [ ] Resume under 1050 words, target roughly 900. Cover letter under 430 words, target
       250 to 400
+- [ ] **Two rendered pages, not two pages of words.** Every entry summary line, Key
+      Projects line and Tech Stacks line fits one rendered line (about 110 characters of
+      text); every bullet fits two. A line that wraps by one or two words costs a whole
+      line, and five of them push Education onto page 3. See *Page fit* at Step 5
+- [ ] Every experience heading carries its location from `input/profile.md`
+      (`| MM/YYYY - MM/YYYY | City, ST, USA` or `| Remote`). An entry with no location is
+      an ATS compatibility deduction; only a `Not recorded` location may be left off, and
+      then it is reported at Step 7
+- [ ] The soft sweep at Step 6 has been run: every role-shape phrase the posting uses that
+      is literally true of the record ("individual contributor", "early-stage startup",
+      "small team", "remote") is on the page
 - [ ] Headline is one line, under 60 characters, and its distinctive words match `target-role`
 - [ ] Every company, date, location, school and contact value appears verbatim in
       `input/profile.md`
@@ -416,17 +428,34 @@ competency phrasing that has nowhere else to go, never for a longer technology l
 1050-word resume budget is unchanged and still binds.
 
 The summary is also the **only place soft keywords can land**, and they score as their own
-category. Work in up to three of the posting's soft requirements, using the literal strings
+category. Work in up to five of the posting's soft requirements, using the literal strings
 captured at Step 2 and the phrasings `input/soft-skills.md` allows against them. Each must
 be attached to something real: "collaborative" on its own is filler, while "worked the
 validation rules out with the business users who sent the files" carries the same keyword
 and survives a reading. Never assert a trait `input/soft-skills.md` lists under **Not
 claimable**, however plainly the posting asks for it; log the miss at Step 8.
 
+**Role-shape phrases are facts, not traits, and they are the cheapest soft points on the
+page.** Postings describe the shape of the job in words a scanner scores as soft keywords:
+"high-impact individual contributor", "early-stage startup", "small team", "remote",
+"mission-driven team". When the record makes the phrase literally true (every title held
+is an individual-contributor title; an employer in `input/profile.md` is a startup; the
+role was remote), write the posting's string once, in the summary or the entry summary
+line. This is description, not a claimed trait, so it needs no `input/soft-skills.md`
+entry. It never licenses a seniority or leadership word the caveats bar. On one live
+check, "individual contributor" was true of every role on the page and still scored as a
+miss, because nobody wrote it.
+
 Industry terms belong here too. The sector itself cannot be changed, but name the honest
 overlap: a regional bank is a regulated, audited environment with operations staff as
 internal users, which is the real adjacency to insurance, fintech and enterprise postings.
-Never write a domain tag the record does not support.
+Never write a domain tag the record does not support. Where the record holds any honest
+adjacency to the posting's sector, even an internship, write the **posting's own sector
+string** (`healthcare`, `fintech`, `insurance`) in that sentence rather than a paraphrase,
+framed at the level the record supports ("healthcare technology exposure from an
+internship"). Generic workflow nouns the posting uses for its own work (`workflow`,
+`stakeholders`, `operations`) are industry points too, and bridge honestly onto recorded
+work.
 
 
 **Skill tiering.** Every entry on the Step 2 JD skill inventory falls into exactly one of
@@ -609,6 +638,14 @@ The point of the shape is that a reader scanning the page finds the same thing i
 place under every employer: what the role was, what it achieved, what it shipped, what it
 was built on. Both sub-labels are fixed strings. Never rename them to echo the posting.
 
+**The heading line carries the location.** Copy it from the `Location` column of
+`input/profile.md` Section 1: `City, ST, USA`, or `Remote` where that is what the table
+records. ATS parsers expect a location on every job and mark an entry without one as
+incomplete, which costs compatibility points that no wording can recover. Leave it off
+only when the table reads `Not recorded`, and then list the role under *Omitted for
+missing detail* at Step 7 so the candidate can add it; never guess a city from the
+employer's headquarters.
+
 **1. Summary line.** One plain sentence, 20 to 35 words, no bullet marker and no bold.
 What this role built, for whom, and on what. It is the entry's headline, so lead with the
 part of the role closest to the posting: the same job reads as platform work on an
@@ -661,6 +698,24 @@ rule, stricter than the Technical Skills section:
   technology reads the same way everywhere on the page.
 - Order by JD relevance, not by the order `input/projects.md` happens to list them.
 
+**Page fit.** The word gate allows 1050 words, but the page is set by rendered lines, and
+the renderer has two rules the word count cannot see: it never splits an experience entry
+across a page (the whole entry moves to the next page, leaving white space behind it), and
+it never starts an entry or section in the bottom 26 mm of a page. So a 1000-word draft can
+render to three pages with Education alone on page 3, which is what happened on a live
+run until eleven lines were tightened. Write against line budgets from the start:
+
+| Line | Budget |
+|---|---|
+| Entry summary line | One rendered line, about 110 characters. 20 to 35 words is the upper bound, not the target |
+| Achievement bullet | Two rendered lines at most. Never one full line plus one to three words |
+| Key Projects line | One rendered line: `Name - what it is`, the description in 6 to 12 words |
+| Tech Stacks line | One or two full lines. Drop background values rather than wrap a single value onto a new line |
+
+When a draft overflows, trim wrapped tails first (the one-to-three-word overhangs), then
+background Tech Stacks values, then the least JD-relevant bullet. Never drop a JD-named
+value, and never cut a role.
+
 **Education and Certifications.** Complete entries only, per the missing-certification
 rule above. Coursework as one plain line under the entry when relevant. Open source and
 publications only when the JD makes them relevant and the page budget allows; they are the
@@ -704,6 +759,19 @@ Fix the markdown until they pass. **Never reach for `--no-verify`**; that flag i
 inspecting a work-in-progress layout, not for shipping. If a gate fails, fix only what it
 names and re-run once. Do not re-read the master resume to fix a style gate.
 
+**Page-fit check.** Once the gates pass, render:
+
+```
+python scripts/convert_resume.py {YYYYMMDD}/{company}-{position}/{name}
+```
+
+It re-runs the gates and prints `pages N` for the resume and the letter. Its own page
+budget is loose (four pages), so a pass there is not a pass here: **the resume must render
+to 2 pages and the letter to 1.** On overflow, apply the *Page fit* trim order from Step 5
+and render once more. The PDFs this writes are the deliverable's PDFs, so the Step 7
+handoff says they exist and gives the command only for re-rendering after the candidate
+edits.
+
 Then read once more for what the gates cannot see: most relevant experience first, and
 no sentence that sounds like a press release. Facts need no cross-checking any more:
 `input/profile.md` is their only source, and the gate reads it.
@@ -715,8 +783,8 @@ once, before delivering. Take the lists captured at Step 2.
 | Category | Check | Where it should land |
 |---|---|---|
 | **Hard** | **Every Required technology appears as the posting's literal string, and every Preferred one the exclusion list does not hold out.** Target: all of them | A bullet where `Skills used` allows one, a Technical Skills row otherwise |
-| **Soft** | Up to three of the posting's competency phrases appear | Summary, attached to something concrete |
-| **Industry** | The sector, or the nearest honest adjacency, and the posting's process vocabulary appear | Summary and bullets |
+| **Soft** | Up to five of the posting's competency phrases appear, plus every role-shape phrase the record makes literally true ("individual contributor", "early-stage startup") | Summary, attached to something concrete |
+| **Industry** | The posting's own sector string wherever the record has an honest adjacency, the nearest adjacency otherwise, and the posting's process vocabulary (`workflow`, `stakeholders`, `production reliability`) | Summary and bullets |
 
 **Hard coverage is the one sweep line that blocks.** Search the draft for each Required
 string. A miss has exactly three legitimate resolutions, and "report it and ship" is no
@@ -829,19 +897,21 @@ and the Step 10 question under that.
 ```
 Resume and cover letter are ready.
 
-- Resume: [path]
-- Cover letter: [path]
+- Resume: [path] (PDF: [path], 2 pages)
+- Cover letter: [path] (PDF: [path], 1 page)
 - Job description (archived): [path]
 
 Before submitting:
 1. Verify every achievement and date reads true to you.
 2. Read the cover letter aloud, and adjust the tone if it does not sound like you.
 
+Re-render after any edit:
 python scripts/convert_resume.py "{YYYYMMDD}/{company}-{position}/{name}"
 ```
 
 That command converts both files: it finds the paired `-cover-letter.md` automatically.
-The user runs it themselves; this skill never runs it for them.
+The skill already ran it once at Step 6 as the page-fit check; the candidate re-runs it
+only after editing the markdown.
 
 Nothing in this step is printed until the Step 9 checker has already run. See Step 9.
 
