@@ -52,6 +52,9 @@ Input:
                                   source, behavioural examples. Read at Step 4
   input/projects.md               the shared project record: what was built, the
                                   skills each project used, and every metric
+  input/bridges.md                optional. What the recorded work is called in other
+                                  disciplines' language. Read at Step 4, applied at
+                                  Step 5. Reframing only, never a tool claim
   input/quiz-{slug}.txt           optional. Read in Step 10 only, only if the user says yes
   scripts/absorb_skills.py        merges this run's absorbed skills into
                                   input/skill-map.json. Run at Step 8, after delivery
@@ -335,8 +338,8 @@ resort, used after JD relevance and before the file's own order.
 ## Step 4: Read the sources
 
 **One parallel batch of Read calls: `input/master-resume.md`, `input/profile.md`,
-`input/projects.md`, `input/soft-skills.md` and `input/keywords.md`.**
-Nothing else is read this run.
+`input/projects.md`, `input/soft-skills.md`, `input/keywords.md` and `input/bridges.md`
+where it exists.** Nothing else is read this run.
 
 | Content | Comes from |
 |---|---|
@@ -345,6 +348,7 @@ Nothing else is read this run.
 | Technical Skills rows | **`input/skill-map.json`**, the only source for labels and values |
 | Soft-skill and competency wording for the summary | **`input/soft-skills.md`**, the only source |
 | Practice and domain wording for bullets | **`input/keywords.md`**, bullets only, never a Technical Skills row |
+| What the recorded work is called in this posting's discipline | **`input/bridges.md`**, applied at Step 5 under *Bridging and best-fit placement* |
 | Certificates and open source, Sections 2 and 3 | **`input/master-resume.md`** |
 | Behavioural examples, Section 4 | **`input/master-resume.md`.** Select the closest genuine example to what this posting emphasises; never invent one to fit |
 
@@ -488,6 +492,48 @@ Absorption rules:
 
 An excluded miss is a real gap. It is reported at Step 7 and logged at Step 8 exactly as
 before, and the way to close it is the candidate editing the record, not a row.
+
+**Bridging and best-fit placement.** Tiering decides which skills may appear where. This
+decides how much of the posting's language the evidenced work can honestly carry, and it is
+where most of a low keyword score is recovered. Two passes, in this order, both run before
+the first bullet is written.
+
+**Pass 1: best-fit placement.** For every Required and Preferred skill on the Step 2
+inventory that is **Evidenced**, find the role whose projects carry it on the most
+`Skills used` lines, and write it into a bullet there rather than leaving it in a Technical
+Skills row. A required keyword sitting only in a row is matched but weakly placed: screeners
+and scoring models both weight Professional Experience above a skills list. One skill, one
+best-fit role. Never repeat the same skill across three roles to raise a count, and never
+move an Inventory or Absorbed value into a bullet to place it more strongly, which is the
+tiering rule and the claim-boundary gate both.
+
+**Pass 2: bridging.** The same work has different names in different disciplines, and the
+record is written in the candidate's own. A posting that calls it business intelligence
+reporting will not match a bullet that calls it a metrics and reporting system, though they
+are the same system. So **describe recorded work in the posting's vocabulary**, taking the
+mapping from `input/bridges.md` where that file exists and from the honest reading of the
+project prose where it does not.
+
+What a bridge may change, and what it may never change:
+
+| A bridge may | A bridge may never |
+|---|---|
+| Rename an activity: "analyzed experiment results" reads as "data analysis" where the posting uses that string | Name a tool, product, platform or vendor the record does not carry. That is the absorbed tier, and it stays in the row |
+| Rename an artifact by what it is: reporting the record describes as a system reads as reporting, dashboards or visualizations only where the project prose actually describes one | Invent the artifact. No dashboard in the record means no dashboard on the page, whatever the posting calls it |
+| Name the discipline the work belongs to, where it genuinely does | Claim a domain, sector or customer type the record does not support. Federal, regulated and clinical all stay off unless the record has them |
+| Use the posting's process nouns for a recorded process: experiment analysis, operational reporting, requirements through deployment | Upgrade scope or seniority. "Core contributor" does not bridge to "led", and a contribution does not bridge to ownership |
+| Reach for a spelling the posting uses over the record's, where both name the same thing | Bridge across a caveat in `input/track-map.json` or a `Recorded gaps` line. Those say what the record cannot stand behind, and they outrank any bridge |
+| Reach for a synonym the skill map does not carry, such as "reporting layer" for a posting asking about reporting | Bridge into a string that is itself an Inventory or Absorbed value. `Business intelligence` in a row and `business intelligence reporting` in a bullet is the same claim twice, and the claim-boundary gate fails the build on it. Bridge to wording the map does not carry |
+
+**The test for every bridge: could the candidate defend this sentence in a screen by
+describing what they actually did, without naming anything they did not touch?** If yes it
+is a bridge. If it needs a tool, a number or a scope they do not have, it is fabrication
+wearing the posting's vocabulary, which is worse than the missing keyword because it fails
+in the interview rather than at the filter.
+
+A bridge is disclosed like anything else: Step 7 reports each one used, under
+*Bridged wording*, so the candidate sees which sentences were written in a vocabulary they
+did not choose and can strike any that overreach.
 
 **Technical Skills.** Built from `input/skill-map.json`, read at Step 2, plus this run's
 absorbed values. Format `- **Category Label**: value, value, value`. The renderer draws
@@ -686,8 +732,12 @@ Two placement failures to look for after that:
 
 - **A buried must-have.** A required keyword sitting only in the Technical Skills row is
   matched but weakly placed. If `input/projects.md` carries it on a `Skills used` line, work
-  it into the bullet for that project. If it does not, the row is the right and only home
-  for it: that is the tiering rule, not a defect.
+  it into the bullet for that project: that is Pass 1 at Step 5, and a miss here means the
+  pass was skipped. If it does not, the row is the right and only home for it: that is the
+  tiering rule, not a defect.
+- **An unbridged category.** Industry and process vocabulary scoring near zero while the
+  bullets describe the same work in the candidate's own words means Pass 2 at Step 5 was
+  skipped. Re-word those bullets against `input/bridges.md`, without adding a claim.
 - **A silent category.** A summary with no competency phrase scores near zero on Soft
   however strong the bullets are, because Soft has nowhere else to land.
 
@@ -753,6 +803,10 @@ Report in chat, not in the files:
 - Nice-to-have keywords covered: [X/Y]
 - Skills absorbed this run: [N, or none]
 - Resume length: [N] words
+
+### Bridged wording
+- [recorded work] written as [the posting's term]. Same work, this posting's vocabulary.
+  Strike it if the wording is not one you would use in the interview
 
 ### Listed but not evidenced
 - [absorbed or inventory value] - [the row it went in]. Listed for the scanner, claimed
