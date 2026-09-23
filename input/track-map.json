@@ -1,200 +1,222 @@
 {
-  "_comment": "Caveat list for input/master-resume.md, the one master resume. Read at Step 2 and applied at Step 3 of .claude/skills/resume-jd-optimizer/SKILL.md. Only the caveats objects, global_caveats and no_fit.keywords are live: they say what this record cannot claim and what to log when a posting asks for it. The tracks grouping, file, label, titles, keywords, default_secondary, domain_boost and examples fields are vestigial from the per-track era and are ignored.",
-  "version": 3,
-  "updated": "2026-09-12",
-  "rules": {
-    "min_keyword_hits": 2,
-    "secondary_threshold": 0.5
-  },
-  "tracks": {
-    "fs": {
-      "file": "input/master-resume-fs.md",
-      "label": "Full Stack Engineer",
-      "default_secondary": null,
-      "titles": [
-        "full stack", "fullstack", "full-stack", "software engineer", "software developer",
-        "web developer", "application developer", "frontend", "front end", "front-end",
-        "react developer", "ui engineer", "backend", "back end", "back-end",
-        "python engineer", "python developer", "api engineer"
-      ],
-      "keywords": [
-        "full stack", "web application", "frontend", "backend", "rest api", "react",
-        "next.js", "typescript", "javascript", "python", "django", "fastapi", "component",
-        "responsive", "accessible forms", "crud", "single page application",
-        "production support"
-      ],
-      "caveats": []
-    },
-    "data": {
-      "file": "input/master-resume-data.md",
-      "label": "Data Engineer",
-      "default_secondary": "fs",
-      "titles": [
-        "data engineer", "analytics engineer", "etl developer", "bi engineer",
-        "reporting engineer", "data platform"
-      ],
-      "keywords": [
-        "sql", "postgresql", "etl", "elt", "pipeline", "ingestion", "pandas",
-        "data validation", "data quality", "deduplication", "batch job", "reporting",
-        "query tuning", "indexing", "caching", "redis", "analytics", "warehouse"
-      ],
-      "caveats": []
-    },
-    "devops": {
-      "file": "input/master-resume-devops.md",
-      "label": "Cloud / DevOps Engineer",
-      "default_secondary": "fs",
-      "titles": [
-        "devops", "sre", "site reliability", "platform engineer", "release engineer",
-        "build engineer", "infrastructure engineer", "cloud engineer"
-      ],
-      "keywords": [
-        "docker", "container", "ci/cd", "github actions", "jenkins", "aws", "ec2", "s3",
-        "linux", "bash", "nginx", "deployment", "release", "rollback", "monitoring",
-        "application logs", "observability", "on-call"
-      ],
-      "caveats": [
-        {
-          "when": [
-            "kubernetes", "k8s", "terraform", "infrastructure as code", "iac", "helm",
-            "ansible", "cluster", "service mesh"
-          ],
-          "action": "select_anyway",
-          "log": "No infrastructure-as-code or cluster work is recorded. devops is the closest track; claim none of this. Needs real infrastructure work in input/projects.md."
-        }
-      ]
-    },
-    "enterprise": {
-      "file": "input/master-resume-enterprise.md",
-      "label": "Enterprise Integration Engineer",
-      "default_secondary": "fs",
-      "titles": [
-        "integration engineer", "erp", "business systems", "solutions engineer",
-        "business applications", "systems analyst"
-      ],
-      "keywords": [
-        "erp", "crm", "itsm", "accounting system", "integration", "scheduled data exchange",
-        "order entry", "inventory", "management reporting", "approval workflow",
-        "internal tools", "back office", "e-commerce", "role-based access control",
-        "business process"
-      ],
-      "caveats": [
-        {
-          "when": [
-            "sap", "salesforce", "netsuite", "servicenow", "workday", "dynamics",
-            "oracle erp", "peoplesoft"
-          ],
-          "action": "select_anyway",
-          "log": "No named ERP or CRM vendor platform is recorded, only generic ERP and accounting integration over REST APIs and scheduled data exchange. Add real platform names to Section 1 if the candidate has used them."
-        }
-      ]
-    },
-    "ai": {
-      "file": "input/master-resume-ai.md",
-      "label": "AI Engineer",
-      "default_secondary": "fs",
-      "titles": [
-        "ai engineer", "ml engineer", "machine learning engineer", "llm", "genai",
-        "generative ai", "applied ai", "ai developer"
-      ],
-      "keywords": [
-        "llm", "rag", "retrieval-augmented", "embeddings", "vector", "pgvector",
-        "semantic search", "prompt", "structured outputs", "genai", "ai application",
-        "openai", "anthropic", "chatbot", "machine learning"
-      ],
-      "caveats": [
-        {
-          "always": true,
-          "action": "select_anyway",
-          "log": "AI-Assisted Case Servicing Copilot and AI-Assisted Reconciliation Triage in input/projects.md evidence LLM API integration, RAG, semantic retrieval, summarization, classification, anomaly scoring and their safeguards, at First Horizon Bank from July 2022. Neither records a model provider, vector store, embedding model, framework, evaluation method, or any accuracy, adoption or time-saved figure. Claim the capability and the guardrails, never a named tool and never an AI number."
-        },
-        {
-          "when": [
-            "python", "pandas", "numpy", "pytorch", "tensorflow", "scikit-learn", "fine-tune",
-            "fine-tuning", "model training", "mlops", "agent", "agentic", "tool calling",
-            "evaluation harness", "llm-as-judge"
-          ],
-          "action": "select_anyway",
-          "log": "Recorded AI work is Java and Spring Boot applied-AI integration only. Python and its AI ecosystem, model training and fine-tuning, MLOps, agentic tool-calling and formal evaluation harnesses are recorded nowhere. If the posting makes one a hard bar, report a structural mismatch rather than bridging to it."
-        }
-      ]
-    }
-  },
-  "domain_boost": {
-    "_comment": "Healthcare delivery is recorded behind these tracks, so a healthcare posting favours them. Adds 'points' to each track's keyword score.",
-    "keywords": [
-      "healthcare", "health plan", "medicaid", "medicare", "marketplace", "claims",
-      "provider data", "phi", "protected health information", "member services", "payer",
-      "eligibility"
-    ],
-    "boost_tracks": ["fs", "data", "enterprise"],
-    "points": 1
-  },
+  "_comment": "Caveat list for input/master-resume.md, the one master resume. Read at Step 2 and applied at Step 3 of .claude/skills/resume-jd-optimizer/SKILL.md. Only global_caveats and no_fit.keywords are live: they say what this record cannot claim and what to log when a posting asks for it. 'tracks' is kept empty because track selection no longer exists; the skill reads caveats from it and from global_caveats alike. Rebuilt 2026-09-23 for the record in input/master-resume.md and input/projects.md.",
+  "version": 4,
+  "updated": "2026-09-23",
+  "tracks": {},
   "global_caveats": [
     {
-      "when": ["8+ years", "9+ years", "10+ years", "10 years", "12 years", "15 years", "decade of"],
+      "always": true,
       "action": "select_anyway",
-      "log": "Record supports 7+ years, March 2019 to present. Do not inflate the headline or summary. If the JD makes the year count a hard bar, log a structural mismatch."
+      "log": "No engineering outcome in input/projects.md carries a measured result: every entry reads 'None recorded'. Bullets are qualitative on every run, and no percentage, time saving or volume may be written. This is the single largest gap in the record. The four numbers worth chasing first are the size of the Indeed Spring Boot to Node.js migration, what the revenue metrics overhaul changed, what the Amazon debugging tool changed about diagnosis time, and what the first CI suite at Josh DeShong Real Estate caught."
     },
     {
-      "when": ["linkedin", "github", "portfolio", "link to your profile"],
+      "when": [
+        "8+ years",
+        "9+ years",
+        "10+ years",
+        "10 years",
+        "12 years",
+        "15 years",
+        "decade of",
+        "senior",
+        "staff",
+        "principal"
+      ],
       "action": "select_anyway",
-      "log": "No LinkedIn or GitHub URL is recorded in Sections 5 and 6 of input/profile.md, so those fields are omitted from the contact line. Add real URLs to close this."
+      "log": "Record supports roughly 8 years of professional software engineering since August 2017, across Pure Storage, Josh DeShong Real Estate, Amazon and Indeed, with breaks between roles. Internships, the teaching assistant role and the C2 Education teaching role are not engineering years. Titles held are Software Engineer and Software Development Engineer, never Senior, Staff or Principal, so do not inflate the headline. If the posting makes the year count or the seniority a hard bar, log a structural mismatch."
+    },
+    {
+      "when": [
+        "tech lead",
+        "technical lead",
+        "team lead",
+        "lead engineer",
+        "architect",
+        "mentor a team",
+        "line management",
+        "engineering manager",
+        "own the roadmap"
+      ],
+      "action": "select_anyway",
+      "log": "'Core contributor' is the profile's own wording on both major pieces of work, the Indeed migration and the Amazon debugging tool. Mentoring new hires and interviewing candidates at Josh DeShong Real Estate are evidenced; leading engineers, owning an architecture and managing people are not. Never write led, drove, headed or architected."
+    },
+    {
+      "when": [
+        "kubernetes",
+        "k8s",
+        "terraform",
+        "infrastructure as code",
+        "iac",
+        "helm",
+        "ansible",
+        "cluster",
+        "service mesh",
+        "platform engineering",
+        "on-call",
+        "sre",
+        "incident command"
+      ],
+      "action": "select_anyway",
+      "log": "Cloud work is AWS application-level: Lambda, EC2, ECS, DynamoDB, IAM, CloudWatch and CDK. No cluster, orchestration, infrastructure-as-code tool beyond CDK, service mesh, platform ownership or production on-call rotation is recorded. The Pure Storage rotation investigated high-priority test failures, not production incidents. Claim none of it."
+    },
+    {
+      "when": [
+        "sql",
+        "postgresql",
+        "postgres",
+        "mysql",
+        "sql server",
+        "oracle",
+        "data warehouse",
+        "snowflake",
+        "bigquery",
+        "databricks",
+        "etl",
+        "elt",
+        "dbt",
+        "airflow",
+        "spark",
+        "kafka",
+        "streaming",
+        "data pipeline"
+      ],
+      "action": "select_anyway",
+      "log": "The record names MongoDB, DynamoDB and Neo4j and nothing else. No relational database, no SQL, no warehouse and no ETL or streaming tooling appears anywhere. A posting built on any of them is a structural mismatch, not something to bridge to."
+    },
+    {
+      "when": [
+        "machine learning",
+        "ml",
+        "llm",
+        "genai",
+        "generative ai",
+        "rag",
+        "embeddings",
+        "vector",
+        "model training",
+        "fine-tuning",
+        "mlops",
+        "data science",
+        "pytorch",
+        "tensorflow",
+        "scikit-learn"
+      ],
+      "action": "select_anyway",
+      "log": "No AI or machine learning work by this candidate is recorded. The CognitiveScale internship built an application on top of that company's insights platform; it is not model development, evaluation or MLOps. Report a structural mismatch rather than bridging to it."
+    },
+    {
+      "when": [
+        "hipaa",
+        "phi",
+        "protected health information",
+        "pci",
+        "pci dss",
+        "soc 2",
+        "gdpr",
+        "iso 27001",
+        "fedramp",
+        "regulated",
+        "compliance",
+        "audit"
+      ],
+      "action": "select_anyway",
+      "log": "No regulated-data or compliance work is recorded. The CognitiveScale healthcare internship application is not compliance experience. Claim none of it, and do not write a domain tag the record cannot stand behind."
+    },
+    {
+      "when": [
+        "agile",
+        "scrum",
+        "kanban",
+        "sprint",
+        "standup",
+        "retrospective",
+        "ceremony",
+        "story points"
+      ],
+      "action": "select_anyway",
+      "log": "No Agile, Scrum, Kanban, sprint, standup or retrospective evidence of any kind is recorded. The values may be listed in a Technical Skills row when the posting names them, and claimed in no bullet, summary or letter."
+    },
+    {
+      "when": [
+        "github",
+        "portfolio",
+        "link to your profile",
+        "open source",
+        "open-source contributions"
+      ],
+      "action": "select_anyway",
+      "log": "No GitHub URL and no open-source contribution is recorded. Section 6 of input/profile.md is empty, so the field is omitted from the contact line. Add a real URL to close this."
+    },
+    {
+      "when": [
+        "salary",
+        "notice period",
+        "start date",
+        "visa",
+        "work authorisation",
+        "work authorization",
+        "sponsorship",
+        "relocation",
+        "references"
+      ],
+      "action": "select_anyway",
+      "log": "Nothing in the record answers these. They come from the candidate, always, and never from a guess: see the Step 10 rules in house-style.md."
     }
   ],
   "no_fit": {
-    "_comment": "The record does not cover these disciplines. Still generate from input/master-resume.md, and log the mismatch at Step 8.",
-    "fallback_track": "fs",
+    "_comment": "The record does not cover these disciplines. Still generate from input/master-resume.md, and log the mismatch at Step 8. Matching is on word boundaries: 'kotlin' is deliberately absent here because the record evidences Kotlin as an Amazon backend language, not as mobile development.",
     "log": "JD is outside what the record covers. Generated from input/master-resume.md, with no claim bridged to the missing discipline.",
     "keywords": [
-      "security engineer", "soc analyst", "penetration testing", "pentest",
-      "incident response", "grc", "compliance auditor", "it support", "service desk",
-      "help desk", "sysadmin", "desktop support", "ios", "android", "swift", "kotlin",
-      "react native", "flutter", "mobile developer", "product manager", "program manager",
-      "product owner", "technical writer", "documentation engineer", "solidity",
-      "smart contract", "web3", "blockchain", "mechanical engineer", "civil engineer",
-      "electrical engineer", "fire protection", "structural engineer"
-    ]
-  },
-  "examples": {
-    "_comment": "Primary comes from the title; secondary is scored against the whole posting body, so these assume a full JD.",
-    "cases": [
-      {
-        "jd": "Senior Python Engineer, healthcare SaaS",
-        "primary": "fs",
-        "secondary": "data",
-        "why": "title hit on 'python engineer', domain_boost applies"
-      },
-      {
-        "jd": "Data Engineer, ETL and reporting",
-        "primary": "data",
-        "secondary": "fs",
-        "why": "title hit on 'data engineer'"
-      },
-      {
-        "jd": "Full Stack Engineer with AI features",
-        "primary": "fs",
-        "secondary": "ai",
-        "why": "title hit on 'full stack', ai scores above threshold on keywords"
-      },
-      {
-        "jd": "DevOps Engineer, Kubernetes required",
-        "primary": "devops",
-        "secondary": "fs",
-        "why": "title hit, but the kubernetes caveat fires and must be logged"
-      },
-      {
-        "jd": "ERP Integration Developer, NetSuite",
-        "primary": "enterprise",
-        "secondary": "fs",
-        "why": "title hit on 'erp', vendor caveat fires and must be logged"
-      },
-      {
-        "jd": "iOS Engineer",
-        "primary": "fs",
-        "secondary": null,
-        "why": "no_fit hit on 'ios', falls back and logs the mismatch"
-      }
+      "security engineer",
+      "soc analyst",
+      "penetration testing",
+      "pentest",
+      "incident response",
+      "grc",
+      "compliance auditor",
+      "it support",
+      "service desk",
+      "help desk",
+      "sysadmin",
+      "desktop support",
+      "ios developer",
+      "android developer",
+      "swift",
+      "react native",
+      "flutter",
+      "mobile developer",
+      "mobile engineer",
+      "product manager",
+      "program manager",
+      "product owner",
+      "scrum master",
+      "technical writer",
+      "documentation engineer",
+      "solidity",
+      "smart contract",
+      "web3",
+      "blockchain",
+      "game developer",
+      "unity",
+      "unreal",
+      "embedded",
+      "firmware",
+      "mechanical engineer",
+      "civil engineer",
+      "electrical engineer",
+      "fire protection",
+      "structural engineer",
+      "data scientist",
+      "machine learning engineer",
+      "ai engineer",
+      "salesforce",
+      "sap",
+      "servicenow",
+      "workday",
+      "netsuite",
+      "dynamics 365",
+      "power bi",
+      "tableau"
     ]
   }
 }
