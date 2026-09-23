@@ -571,6 +571,15 @@ def check_structure(doc: Doc) -> list[str]:
     if doc.is_cover:
         if words > MAX_WORDS_COVER:
             problems.append(f'cover letter is {words} words, over the {MAX_WORDS_COVER}-word budget')
+        # The letter carries the same header block as the resume: the renderer
+        # draws the letterhead from it, and a letter with no name or contact on
+        # it is unusable however good the prose.
+        if not doc.name:
+            problems.append('no `# Name` heading found: the cover letter opens with the '
+                            'same header block as the resume')
+        elif not doc.contact:
+            problems.append('no contact line under the header: the cover letter carries '
+                            'the same name, headline and contact lines as the resume')
         return problems
 
     if not doc.name:

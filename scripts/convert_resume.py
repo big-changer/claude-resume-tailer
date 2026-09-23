@@ -169,6 +169,29 @@ BULLET_STYLE = ParagraphStyle(
     # Without this the bullet marker silently falls back to Helvetica, which
     # embeds a second font face for the sake of one hyphen.
     bulletFontName=ROMAN, bulletFontSize=10)
+# Cover letter. The resume styles are tuned for density; a letter is read top
+# to bottom by one person, so it gets a slightly larger face, more leading and
+# real paragraph spacing, and its address, subject and signature blocks keep
+# their line breaks instead of being run together into one paragraph.
+LETTER_META_STYLE = ParagraphStyle(
+    'LetterMeta', fontName=ROMAN, fontSize=10.5, leading=14.5, textColor=BODY,
+    alignment=TA_LEFT)
+LETTER_SUBJECT_STYLE = ParagraphStyle(
+    'LetterSubject', fontName=BOLD, fontSize=10.5, leading=14.5, textColor=BLACK,
+    alignment=TA_LEFT)
+LETTER_BODY_STYLE = ParagraphStyle(
+    'LetterBody', fontName=ROMAN, fontSize=10.5, leading=14.5, textColor=BODY,
+    alignment=TA_JUSTIFY, spaceAfter=3.2 * mm)
+LETTER_SIGNATURE_STYLE = ParagraphStyle(
+    'LetterSignature', fontName=BOLD, fontSize=10.5, leading=14.5, textColor=BLACK,
+    alignment=TA_LEFT)
+LETTER_HEADER_GAP = 6 * mm      # rule under the contact block to the date
+LETTER_BLOCK_GAP = 4.5 * mm     # between date, address, subject and salutation
+LETTER_SIGNATURE_GAP = 9 * mm   # room for a handwritten signature
+# The last block of the letter is the sign-off when it opens with one of these.
+LETTER_CLOSINGS = ('sincerely', 'regards', 'best', 'kind', 'warm', 'yours',
+                   'respectfully', 'thank you')
+
 # Job or degree title, company or school, and dates/location are rendered by a
 # custom flowable so the entry uses the full frame width without introducing a
 # PDF table. Tables make some resume parsers read the right column out of order.
@@ -185,23 +208,29 @@ ENTRY_SUB_STYLE = ParagraphStyle(
 SUBHEAD_STYLE = ParagraphStyle(
     'Subhead', fontName=BOLD, fontSize=10, leading=13, textColor=BLACK,
     alignment=TA_LEFT, spaceBefore=1.2 * mm, spaceAfter=1.0 * mm)
-# Technical skills are one text flow per row: the bold category, a colon, then
-# its skills continuing on the same line. Wrapped lines hang to a shared indent,
-# so the block still reads as an aligned list down the page.
+# Technical skills are laid out as two aligned columns: the bold category on
+# the left, its skills on the right. The category column is sized once for the
+# whole section so every row shares one boundary, which is what makes the block
+# read as a table rather than as a run of wrapped sentences.
 #
-# This used to be two hand-placed columns, which extracted in the right order
-# but still presented as a column layout, the first thing an ATS compatibility
-# check flags. One flow removes the question: "Programming Languages: Python,
-# ..." comes out of a text extractor as a single line, the same string a
-# keyword scanner would read out of the markdown.
-SKILL_ROW_STYLE = ParagraphStyle(
-    'SkillRow', fontName=ROMAN, fontSize=10, leading=13, textColor=BODY,
+# This was briefly a single hanging-indented paragraph per row, which lost the
+# bold on the category (the row regex strips the asterisks before the label
+# reaches the renderer, so inline() had nothing to embolden) and ran the label
+# into its values. The two-column form is back because that is the shape the
+# candidate signs off on; it still draws label-then-values in reading order,
+# so a text extractor sees the category immediately followed by its skills.
+SKILL_LABEL_STYLE = ParagraphStyle(
+    'SkillLabel', fontName=BOLD, fontSize=10, leading=13, textColor=BLACK,
     alignment=TA_LEFT)
+SKILL_VALUE_STYLE = ParagraphStyle(
+    'SkillValue', fontName=ROMAN, fontSize=10, leading=13, textColor=BODY,
+    alignment=TA_LEFT)
+SKILL_GUTTER = 4 * mm
 SKILL_ROW_GAP = 1.6 * mm
-# The hanging indent for continuation lines, as a fraction of the text width.
-# Wide enough to sit clear of the longest category, narrow enough to leave the
-# values room.
-SKILL_HANG = 0.28
+# Bounds on the category column. Too narrow and long categories wrap to three
+# lines beside a two-line value; too wide and the skills column is squeezed.
+SKILL_LABEL_MIN = 0.20
+SKILL_LABEL_MAX = 0.32
 
 # No PDF tables anywhere in this renderer, by design. Every flowable draws its
 # text in reading order, so that is the order the extracted text comes out in.
@@ -365,27 +394,54 @@ def entry_heading(title: str, meta_parts: list[str], subtitle: str) -> list:
     ])]
 
 
-def skill_row(label: str, value: str, hang: float) -> Paragraph:
-    """One category and its skills as a single hanging-indented paragraph.
+class SkillRow(Flowable):
+    """One category and its skills, drawn as two aligned columns.
 
-    The whole row is one text flow, so a text extractor emits
-    "Programming Languages: Python, ..." as one line and no parser has a column
-    to walk on its own. `hang` indents the continuation lines only, which keeps
-    the block aligned down the page without splitting it into columns.
+    Still not a PDF table. The two columns are two paragraphs placed by hand,
+    and the label is drawn before its values, so the extracted text stays in
+    reading order -- "Databases" immediately followed by the skills that belong
+    to it -- which is what a keyword scanner reads. A real table would let a
+    parser walk the right column on its own and detach the skills from their
+    category. The label arrives without its markdown asterisks (the row regex
+    strips them), so its weight comes from SKILL_LABEL_STYLE, not from inline().
     """
-    style = ParagraphStyle(
-        f'SkillRow{int(hang)}', parent=SKILL_ROW_STYLE,
-        leftIndent=hang, firstLineIndent=-hang)
-    return Paragraph(f'{inline(label, link=False)}: {inline(value)}', style)
+
+    def __init__(self, label: str, value: str, label_width: float):
+        super().__init__()
+        self.label_para = Paragraph(inline(label, link=False), SKILL_LABEL_STYLE)
+        self.value_para = Paragraph(inline(value), SKILL_VALUE_STYLE)
+        self.label_width = label_width
+        self._width = AVAIL
+        self._label_height = 0.0
+        self._value_height = 0.0
+        self._label_width_used = label_width
+
+    def wrap(self, availWidth, availHeight):
+        self._width = availWidth
+        label_w = min(self.label_width, availWidth * SKILL_LABEL_MAX)
+        value_w = availWidth - label_w - SKILL_GUTTER
+        _, self._label_height = self.label_para.wrap(label_w, availHeight)
+        _, self._value_height = self.value_para.wrap(value_w, availHeight)
+        self._label_width_used = label_w
+        return availWidth, max(self._label_height, self._value_height)
+
+    def draw(self):
+        height = max(self._label_height, self._value_height)
+        # Both columns hang from the same top edge, so the category sits level
+        # with the first line of its skills however far the skills wrap.
+        self.label_para.drawOn(self.canv, 0, height - self._label_height)
+        self.value_para.drawOn(
+            self.canv, self._label_width_used + SKILL_GUTTER,
+            height - self._value_height)
 
 
 def skill_column_width(rows: list[tuple[str, str]]) -> float:
-    """The hanging indent: the widest category plus a colon, within bounds."""
+    """Width of the category column: the widest category, within bounds."""
     widest = max(
-        (stringWidth(f'{label}: ', BOLD, SKILL_ROW_STYLE.fontSize)
-         for label, _ in rows),
+        (stringWidth(label, BOLD, SKILL_LABEL_STYLE.fontSize) for label, _ in rows),
         default=0)
-    return min(widest, AVAIL * SKILL_HANG)
+    return max(min(widest + SKILL_GUTTER, AVAIL * SKILL_LABEL_MAX),
+               AVAIL * SKILL_LABEL_MIN)
 
 
 def skill_block(rows: list[tuple[str, str]]) -> list:
@@ -395,7 +451,7 @@ def skill_block(rows: list[tuple[str, str]]) -> list:
     for index, (label, value) in enumerate(rows):
         if index:
             block.append(Spacer(1, SKILL_ROW_GAP))
-        block.append(skill_row(label, value, label_width))
+        block.append(SkillRow(label, value, label_width))
     return block
 
 
@@ -442,12 +498,10 @@ def build_story(text: str) -> list:
                     story.append(Spacer(1, 1.6 * mm))
                     first = False
                 else:
-                    # No autolinking here. The email and any profile URL are
-                    # read by a parser as the plain strings they already are,
-                    # and an embedded href is one more thing for an ATS
-                    # compatibility check to flag for nothing.
-                    story.append(Paragraph(inline(value, link=False),
-                                           CONTACT_STYLE))
+                    # Autolinked like the body: the email and the profile
+                    # URLs stay the bare strings a parser reads, and the
+                    # annotation on top makes them clickable for a human.
+                    story.append(Paragraph(inline(value), CONTACT_STYLE))
                 i += 1
             story.append(Spacer(1, 1.4 * mm))
             continue
@@ -507,6 +561,125 @@ def build_story(text: str) -> list:
     return story
 
 
+def build_letter_story(text: str, header_from: str | None = None) -> list:
+    """A business-letter layout for the cover letter.
+
+    The markdown is the same shape the resume uses (name, headline, contact,
+    then paragraphs separated by blank lines), and the blocks are told apart
+    by position and shape rather than by any markup, so the skill writes the
+    letter exactly as before:
+
+        date                    first block
+        address                 every block up to the salutation, line breaks kept
+        Re: role - company      generated from the metadata comment
+        Dear ...,               the salutation, a single line ending in a comma
+        body paragraphs         everything else, justified
+        Sincerely, / name       the last block, with room for a signature
+
+    `header_from` is the paired resume's markdown. The contract has the letter
+    carry its own header block and the verifier now blocks one that does not,
+    but a letter rendered with --no-verify, or one written before that gate
+    existed, still gets a letterhead: the resume's, since the two are one
+    application.
+    """
+    doc = V.Doc(text)
+    lines = doc.body.splitlines()
+    story: list = []
+
+    header = doc
+    if not doc.name and header_from:
+        header = V.Doc(header_from)
+
+    # Letterhead, as on the resume, closed by a hairline so the letter proper
+    # has a clear top edge.
+    if header.name:
+        story.append(Paragraph(escape_xml(header.name), NAME_STYLE))
+        if header.headline:
+            story.append(Spacer(1, 1.2 * mm))
+            story.append(Paragraph(inline(header.headline), HEADLINE_STYLE))
+            story.append(Spacer(1, 1.6 * mm))
+        for value in header.contact:
+            story.append(Paragraph(inline(value), CONTACT_STYLE))
+        story.append(HRFlowable(width='100%', thickness=0.4, color=RULE,
+                                spaceBefore=2.4 * mm, spaceAfter=LETTER_HEADER_GAP))
+
+    # Everything after the header block, grouped into blank-line-separated
+    # blocks. With no header in this file, the letter starts at the top.
+    i = 0
+    if doc.name:
+        while i < len(lines) and not lines[i].strip().startswith('# '):
+            i += 1
+        while i < len(lines) and lines[i].strip():
+            i += 1
+    blocks: list[list[str]] = []
+    current: list[str] = []
+    for raw in lines[i:]:
+        line = raw.strip()
+        if line and line != '---':
+            current.append(line)
+        elif current:
+            blocks.append(current)
+            current = []
+    if current:
+        blocks.append(current)
+    if not blocks:
+        return story
+
+    def is_salutation(block: list[str]) -> bool:
+        return len(block) == 1 and block[0].endswith(',') and block[0].lower().startswith('dear')
+
+    def is_closing(block: list[str]) -> bool:
+        return block[0].lower().rstrip(',').startswith(LETTER_CLOSINGS)
+
+    def lines_para(block: list[str], style: ParagraphStyle) -> Paragraph:
+        return Paragraph('<br/>'.join(inline(l) for l in block), style)
+
+    # "Sincerely," and the name are one block whether the writer left a blank
+    # line between them or not.
+    if (len(blocks) > 2 and len(blocks[-2]) == 1 and is_closing(blocks[-2])
+            and len(blocks[-1]) <= 2 and not is_closing(blocks[-1])):
+        blocks[-2:] = [blocks[-2] + blocks[-1]]
+
+    salutation_at = next((k for k, b in enumerate(blocks) if is_salutation(b)), None)
+    closing_at = len(blocks) - 1 if len(blocks) > 1 and is_closing(blocks[-1]) else None
+
+    # Date and address: the blocks before the salutation, each on its own lines.
+    head_end = salutation_at if salutation_at is not None else 0
+    for block in blocks[:head_end]:
+        story.append(lines_para(block, LETTER_META_STYLE))
+        story.append(Spacer(1, LETTER_BLOCK_GAP))
+
+    # Subject line from the metadata the skill already writes.
+    role = doc.meta.get('target-role', '').strip()
+    company = doc.meta.get('target-company', '').strip()
+    if role or company:
+        subject = ' - '.join(p for p in (role, company) if p)
+        story.append(Paragraph(f'Re: {escape_xml(subject)}', LETTER_SUBJECT_STYLE))
+        story.append(Spacer(1, LETTER_BLOCK_GAP))
+
+    if salutation_at is not None:
+        story.append(lines_para(blocks[salutation_at], LETTER_META_STYLE))
+        story.append(Spacer(1, LETTER_BLOCK_GAP * 0.7))
+
+    body_start = head_end + (1 if salutation_at is not None else 0)
+    body_end = closing_at if closing_at is not None else len(blocks)
+    for block in blocks[body_start:body_end]:
+        story.append(Paragraph(inline(' '.join(block)), LETTER_BODY_STYLE))
+
+    # Sign-off: the closing phrase, a gap for the signature, then the name in
+    # bold. Any further lines (a phone number, say) follow the name.
+    if closing_at is not None:
+        closing = blocks[closing_at]
+        story.append(Spacer(1, LETTER_BLOCK_GAP * 0.4))
+        story.append(Paragraph(inline(closing[0]), LETTER_META_STYLE))
+        if len(closing) > 1:
+            story.append(Spacer(1, LETTER_SIGNATURE_GAP))
+            story.append(Paragraph(inline(closing[1]), LETTER_SIGNATURE_STYLE))
+            for extra in closing[2:]:
+                story.append(Paragraph(inline(extra), LETTER_META_STYLE))
+    return story
+
+
 # ── Rendering ──────────────────────────────────────────────────────────────
 def render(md_path: Path, title: str) -> tuple[bytes, int]:
     """Build the PDF in memory. Returns its bytes and its page count."""
@@ -523,7 +696,16 @@ def render(md_path: Path, title: str) -> tuple[bytes, int]:
         id='body',
     )
     doc.addPageTemplates([PageTemplate(id='page', frames=[frame])])
-    doc.build(build_story(md_path.read_text(encoding='utf-8')))
+    text = md_path.read_text(encoding='utf-8')
+    if V.is_cover_file(md_path):
+        resume_md = md_path.with_name(
+            md_path.stem[:-len(V.COVER_SUFFIX)] + md_path.suffix)
+        header_from = (resume_md.read_text(encoding='utf-8')
+                       if resume_md.exists() else None)
+        story = build_letter_story(text, header_from)
+    else:
+        story = build_story(text)
+    doc.build(story)
     return buffer.getvalue(), doc.page
 
 
