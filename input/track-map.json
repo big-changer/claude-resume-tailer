@@ -1,5 +1,5 @@
 {
-  "_comment": "Maps job-description text to input/master-resume-{track}.md files. The 'tracks' object is authoritative: a track absent from it has no file and cannot be selected. Data only - the selection algorithm lives in Step 3 of .claude/skills/resume-jd-optimizer/SKILL.md.",
+  "_comment": "Caveat list for input/master-resume.md, the one master resume. Read at Step 2 and applied at Step 3 of .claude/skills/resume-jd-optimizer/SKILL.md. Only the caveats objects, global_caveats and no_fit.keywords are live: they say what this record cannot claim and what to log when a posting asks for it. The tracks grouping, file, label, titles, keywords, default_secondary, domain_boost and examples fields are vestigial from the per-track era and are ignored.",
   "version": 3,
   "updated": "2026-09-12",
   "rules": {
@@ -143,9 +143,9 @@
     }
   ],
   "no_fit": {
-    "_comment": "No track file covers these. Use fallback_track as primary with no secondary, and log the mismatch at Step 8.",
+    "_comment": "The record does not cover these disciplines. Still generate from input/master-resume.md, and log the mismatch at Step 8.",
     "fallback_track": "fs",
-    "log": "JD is outside every track the record covers. Generated from master-resume-fs.md as the general software engineering fallback.",
+    "log": "JD is outside what the record covers. Generated from input/master-resume.md, with no claim bridged to the missing discipline.",
     "keywords": [
       "security engineer", "soc analyst", "penetration testing", "pentest",
       "incident response", "grc", "compliance auditor", "it support", "service desk",

@@ -7,9 +7,9 @@ ticks off itself does not stop the same defect recurring on the next run.
   Gate 1  human style    no AI-tell symbols, no AI-tell phrasing, no bracketed
                          placeholders left in the deliverable
   Gate 2  frozen facts   every company, date, location, school and contact value
-                         in the output is verified to exist in one of the
-                         input/master-resume-{track}.md files, which together are
-                         the source of truth
+                         in the output is verified to exist in input/profile.md
+                         or input/master-resume.md, which together are the
+                         source of truth
   Gate 3  headline       the role under the name tracks the target job title and
                          is not left over from the master resume
   Gate 4  emphasis       no inline bold outside the two structural positions
@@ -38,16 +38,18 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 
-# The record is split across files. input/profile.md holds the shared identity,
-# employment, education and contact facts; each input/master-resume-{track}.md holds
-# one kind of role's skills, certificates, open source and behavioural examples.
+# The record is split across files. input/profile.md holds the identity,
+# employment, education and contact facts; input/master-resume.md holds the
+# skills, certificates, open source and behavioural examples. The glob still
+# matches legacy per-track master-resume-{track}.md files so an old checkout
+# verifies unchanged.
 # The frozen-facts gate checks the union, because a resume draws from both.
 # master-resume-bone.md is excluded: it is the anonymised sharing template, and its
 # bracketed placeholders are not facts. input/projects.md is deliberately NOT a
 # source: projects must not introduce an employer the profile does not record, so a
 # project naming an unknown company should fail this gate rather than pass it.
 MASTER_DIR = ROOT / 'input'
-MASTER_GLOB = 'master-resume-*.md'
+MASTER_GLOB = 'master-resume*.md'
 MASTER_EXCLUDE = {'master-resume-bone.md'}
 PROFILE_NAME = 'profile.md'
 
@@ -79,7 +81,7 @@ def cover_path_for(resume_md: Path) -> Path:
 
 
 def master_resumes(directory: Path = MASTER_DIR) -> list[Path]:
-    """Every track file the frozen-facts gate treats as a source of truth."""
+    """Every master resume file the frozen-facts gate treats as a source of truth."""
     if not directory.is_dir():
         return []
     return sorted(
@@ -88,7 +90,7 @@ def master_resumes(directory: Path = MASTER_DIR) -> list[Path]:
 
 
 def fact_sources(directory: Path = MASTER_DIR) -> list[Path]:
-    """Track files plus the shared profile.
+    """The master resume plus the profile.
 
     Employers, dates, locations, schools and contact values live in profile.md
     only, so omitting it here would fail every fact in every generated resume.
@@ -278,18 +280,15 @@ def _date_forms(token: str) -> list[str]:
     return [_norm(f'{mm}/{yyyy}'), _norm(f'{month} {yyyy}'), _norm(f'{month[:3]} {yyyy}')]
 
 
-# ── Gate 2 — frozen facts, verified against the track files ────────────────
+# ── Gate 2 — frozen facts, verified against the record ─────────────────────
 def check_frozen(doc: Doc, sources: list[Path] | None = None) -> list[str]:
     """Every hard fact in the output must already exist in a source file.
 
     Checked in that direction on purpose. Listing the facts here instead would
     mean a typo in this file could quietly become the new truth.
 
-    The sources are input/profile.md plus the union of the track files, which is
-    the widest thing that can be checked here, because this gate does not know
-    which tracks the run selected. Keeping the output's facts to the *primary*
-    track specifically is a rule in the skill, not something this gate can
-    enforce.
+    The sources are input/profile.md plus input/master-resume.md, which is the
+    whole record a resume may draw a fact from.
     """
     sources = fact_sources() if sources is None else sources
     if not sources:
@@ -316,7 +315,7 @@ def check_frozen(doc: Doc, sources: list[Path] | None = None) -> list[str]:
         if not value:
             return
         if not any(f in master for f in _date_forms(value)):
-            problems.append(f'{what} not found in any track file: {value!r}')
+            problems.append(f'{what} not found in the record: {value!r}')
 
     # Contact block: only the machine-checkable values. A location is written
     # differently on a resume than in the master file ("North Platte, NE, USA

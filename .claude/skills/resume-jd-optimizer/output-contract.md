@@ -22,8 +22,8 @@ the normal case; read this when something about the shape is unclear.
 
 ## Rules the renderer depends on
 
-- Dates are always `MM/YYYY - MM/YYYY`. The frozen-facts gate matches them against the
-  track files, which write them as month names, so any real date will verify.
+- Dates are always `MM/YYYY - MM/YYYY`. The frozen-facts gate matches them against
+  `input/profile.md`, which writes them as month names, so any real date will verify.
 - Write URLs bare, as `linkedin.com/in/handle`, not as markdown links. In the body the
   renderer makes bare URLs and email addresses clickable while leaving the visible text
   exactly as written, which is what an ATS reads. **The contact line is the exception: it

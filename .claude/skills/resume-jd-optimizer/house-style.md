@@ -73,7 +73,7 @@ So, for every must-have and every industry tag:
   write a domain tag the record cannot stand behind: it is the single most checkable
   fabrication on the page.
 
-Only claim what the selected track files support. This is about wording what is already
+Only claim what the record in `input/master-resume.md` and `input/projects.md` supports. This is about wording what is already
 true in the language the scanner expects, never about adding claims.
 
 ## Cover letter voice
@@ -158,7 +158,7 @@ the resume, so they must not sound like the resume.
 
 Ground rules that do not bend:
 
-- **Every claim traces to the generated resume or a track file selected this run.** Casual
+- **Every claim traces to the generated resume or to `input/master-resume.md`.** Casual
   wording is a style choice, not a licence to invent a project, a number or a job.
 - If a question cannot be answered without fabricating, put the honest one-liner in the
   fenced block, then say plainly after the list what you need from the candidate. Typical
@@ -166,7 +166,7 @@ Ground rules that do not bend:
   sponsorship, relocation, references, a GPA nobody recorded.
 - Never guess at anything legal or contractual. Authorisation, clearance and sponsorship
   answers come from the candidate, always.
-- If the user volunteers a real new fact here, offer to fold it into the track files per
+- If the user volunteers a real new fact here, offer to fold it into the record per
   the sync rules in `logging.md`.
 
 After the list, ask the yes/no question again, verbatim, as the last line. Loop until the

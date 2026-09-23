@@ -17,31 +17,30 @@ Read this only when one of these conditions actually fires. The normal run never
 | The script's date differs from the session date you were told | The script wins, always. That gap is the machine sitting in another timezone than the candidate, which is the whole reason it exists |
 | The resume location moves | Correct section 4 of `input/profile.md`. Nothing else stores a timezone |
 
-## Track selection
+## Sources and caveats
 
 | Scenario | Action |
 |---|---|
-| JD spans several kinds of work | Two tracks at most, ranked. The primary drives the document; facts come from `input/profile.md` either way |
-| No track matches the JD | Use `master-resume-fs.md` as primary and log it to the gaps file. The map's "no track fits" list names the disciplines this covers |
-| The map names a track whose file is missing | Treat it as "no track fits" and fall back to `fs`. Log it: the map and the files have drifted apart |
-| A `master-resume-*.md` file exists that the map does not list | Do not select it. The map is authoritative. Log it so the map can be updated |
-| The map and the JD's responsibilities disagree | Follow the map, which encodes what the record supports rather than what the title suggests. Log the disagreement |
-| Two track files differ in Section 4 | Expected. Behavioural examples are written per track on purpose. Use the primary's version and log nothing |
-| Two track files differ on a certificate or open-source entry, Sections 2 or 3 | Real drift. Follow the primary track and log it. Facts cannot conflict: they live only in `input/profile.md` |
+| JD spans several kinds of work | One master resume covers all of it. Lead with the overlap this posting names; facts come from `input/profile.md` either way |
+| The JD is outside what the record covers | Still generate from `input/master-resume.md`, honestly and without inflation, and log `no_fit.log` from `input/track-map.json` as a structural mismatch. There is no fallback file to swap in |
+| `input/master-resume.md` is missing | Stop and report the path checked, as with a missing JD. Never substitute `master-resume-bone.md`, which is the anonymised template and holds no real data |
+| A leftover `input/master-resume-{track}.md` file exists | Ignore it. `input/master-resume.md` is the only master resume this skill reads. Log it so the stale file can be deleted |
+| A caveat in `input/track-map.json` and the JD's responsibilities disagree | Follow the caveat, which encodes what the record supports rather than what the title suggests. Log the disagreement |
+| A caveat fires | Never blocking. Keep the named thing off the page, generate as normal, and write the caveat's `log` text to the gaps file at Step 8 |
 | `input/profile.md` is missing | Stop. The frozen-facts gate refuses to run without it, and no employer, date or contact can be verified |
 | A skill is in Section 1 but in no project's `Skills used` | It has no project evidence. Allowed in Technical Skills, never as an experience bullet. Log it |
 | A project's `Measured results` says "None recorded" | Write the bullet qualitatively. Never borrow a number from another project |
-| `input/projects.md` is missing | Generate from the track files alone, with qualitative bullets and no metrics, and log it. Do not reconstruct projects from the skills list |
+| `input/projects.md` is missing | Generate from `input/master-resume.md` alone, with qualitative bullets and no metrics, and log it. Do not reconstruct projects from the skills list |
 | A project names a company not in `input/profile.md` | Do not use it. The frozen-facts gate would reject the company. Log the drift |
-| The primary track's Section 4 has no example matching what the JD emphasises | Use the closest genuine one and log the gap. Never borrow an example from another track and never invent one |
+| Section 4 has no example matching what the JD emphasises | Use the closest genuine one and log the gap. Never invent one |
 | Section 1 lists far more skills than fit the page | It is an inventory, not a shortlist. Select by JD relevance within the eight-category budget and drop the rest. There is no candidate-declared priority list to honour |
-| Two sessions both need a master resume sync write | The track files are shared, so apply one edit at a time and re-read the file before the second write |
+| Two sessions both need a master resume sync write | The file is shared, so apply one edit at a time and re-read it before the second write |
 
 ## Content and gaps
 
 | Scenario | Action |
 |---|---|
-| JD names a tech skill not in any track file and not in `input/skill-map.json` | Absorb it: render the posting's literal string in the nearest of the nine Technical Skills rows, claim it nowhere else, disclose it at Step 7 and merge it at Step 8. Do not ask |
+| JD names a tech skill absent from `input/master-resume.md` and from `input/skill-map.json` | Absorb it: render the posting's literal string in the nearest of the nine Technical Skills rows, claim it nowhere else, disclose it at Step 7 and merge it at Step 8. Do not ask |
 | JD names something on the Step 5 exclusion list: a credential, a degree, years of experience, a spoken language, work authorisation, a job title, a soft competency | Not absorbed, not rendered. Report it at Step 7 as unmet and log it. A row is not a place to answer it |
 | Absorbing every named skill would take a row past 20 values, or the page over 1050 words | Cut background values first, then the weakest bullet in the least relevant role, then optional sections. A JD-named value is the last thing to go, and if one still has to go, say so in the report |
 | The posting names a skill that would fit a tenth category | The label set is closed. Place it under the nearest of the nine and move on |
@@ -50,11 +49,11 @@ Read this only when one of these conditions actually fires. The normal run never
 | An absorbed skill is the whole job, not a detail | Still generate, and still absorb. Say plainly in the report that the central requirement is listed and unevidenced, and log it as a hard mismatch. This is the case where the candidate most needs to see the disclosure before they send it |
 | The candidate clearly does not qualify | Still generate, honestly and without inflation. Log why in the gaps file. Never refuse and never ask |
 | Junior candidate, senior posting | Do not inflate the headline. Use the title without the inflated seniority word and highlight relevant depth |
-| Combination role | Prioritise the primary, keep the secondary visible in skills |
+| Combination role | Lead with the part of the record closest to the posting, and keep the rest visible in the skills rows |
 | Missing metric | Honest qualitative phrasing or a clearly scoped estimate. Never a fabricated number. Flag any estimate in the report |
 | Fewer than five quantified results exist | Report the shortfall and name the specific bullets that would carry a number. Do not invent one |
 | JD requires a certification the candidate lacks | Omit it. Report as an unmet requirement. Never generate one |
-| A track file records a credential but not its details | Omit the entry, report exactly what to add to close it. This applies even when the track file's own notes ask for a bracketed placeholder: omission achieves what those notes want without shipping an unsubmittable placeholder |
+| The master resume records a credential but not its details | Omit the entry, report exactly what to add to close it. This applies even when the file's own notes ask for a bracketed placeholder: omission achieves what those notes want without shipping an unsubmittable placeholder |
 | A degree is missing its discipline, institution or year | Same rule as a credential: omit and report |
 | User supplies a real fact mid-session | Apply the master resume sync rules in `logging.md`, then use it |
 
@@ -63,8 +62,8 @@ Read this only when one of these conditions actually fires. The normal run never
 | Scenario | Action |
 |---|---|
 | Resume runs over two pages | Cut the least JD-relevant skill categories first, then the weakest bullet in each role, then optional sections |
-| A gate fails | Fix only what it names and re-run once. Do not use `--no-verify`, and do not re-read the track files to fix a style gate |
-| A fact is right in the resume but absent from `input/profile.md` | The gate rejects it. Add it to the profile if it is true, or drop it from the resume. Never satisfy the gate by editing a track file |
+| A gate fails | Fix only what it names and re-run once. Do not use `--no-verify`, and do not re-read the master resume to fix a style gate |
+| A fact is right in the resume but absent from `input/profile.md` | The gate rejects it. Add it to the profile if it is true, or drop it from the resume. Never satisfy the gate by editing `input/master-resume.md` |
 
 ## Step 10 questions
 

@@ -1,17 +1,17 @@
 ---
 name: resume-jd-optimizer
-description: Use when tailoring a resume and cover letter to one specific job description - selects the matching per-track master resumes, generates a two-page resume plus cover letter that pass blocking build gates on the first try, and defers all bookkeeping until after the deliverable ships
+description: Use when tailoring a resume and cover letter to one specific job description - reads the single master resume, generates a two-page resume plus cover letter that pass blocking build gates on the first try, and defers all bookkeeping until after the deliverable ships
 ---
 
 # Resume-JD Optimizer
 
 ## Overview
 
-Turns a job description plus the candidate's per-track master resumes into a tailored
-two-page resume and a matching cover letter, both of which read as if a person wrote them.
+Turns a job description plus the candidate's master resume into a tailored two-page resume
+and a matching cover letter, both of which read as if a person wrote them.
 
 **Core principle:** Truth-preserving optimization. Reorder, reframe and select from what
-the track files already record. Never invent experience, dates, titles, certifications or
+the record already holds. Never invent experience, dates, titles, certifications or
 metrics.
 
 **Third principle: every skill this posting names reaches the page.** A required
@@ -32,23 +32,24 @@ files exist on disk.
 - The user has a job description in `input/jd-{slug}.txt` and wants a tailored resume.
 - The user invokes `/resume-jd-optimizer {slug}`.
 
-**DO NOT use for:** writing a resume from scratch with no master resume library, LinkedIn
-profile work, or editing the track files directly.
+**DO NOT use for:** writing a resume from scratch with no master resume, LinkedIn
+profile work, or editing the master resume directly.
 
 ## Quick Start
 
 ```
 Input:
   input/jd-{slug}.txt             the posting. One per run slug
-  input/track-map.json            JD text to track files. Authoritative for which
-                                  tracks exist. Read at Step 2, applied at Step 3
+  input/track-map.json            caveats only: what this record cannot claim, and
+                                  what to log when a posting asks for it. Read at
+                                  Step 2, applied at Step 3
   input/skill-map.json            the closed set of Technical Skills labels and the
                                   values under each. Authoritative for that section.
                                   Read at Step 2, applied at Step 5
-  input/profile.md                shared and single-source: employers, dates,
-                                  locations, education, contacts. The gate reads it
-  input/master-resume-{track}.md  per-track: skills, certificates, open source,
-                                  behavioural examples. Selected in Step 3
+  input/profile.md                single-source: employers, dates, locations,
+                                  education, contacts. The gate reads it
+  input/master-resume.md          the one master resume: skills, certificates, open
+                                  source, behavioural examples. Read at Step 4
   input/projects.md               the shared project record: what was built, the
                                   skills each project used, and every metric
   input/quiz-{slug}.txt           optional. Read in Step 10 only, only if the user says yes
@@ -92,14 +93,14 @@ This skill was rewritten because it was slow. The rules below are what made it f
 they matter as much as the content rules.
 
 1. **Batch every read into one message.** The JD, `track-map.json` and `skill-map.json`
-   go together at Step 2; the primary track file, every secondary, `input/profile.md` and
+   go together at Step 2; `input/master-resume.md`, `input/profile.md` and
    `input/projects.md` go together at Step 4. Never read a file twice in a run; hold what you read.
 2. **Three shell commands per run.** `python scripts/resume_date.py --json` at Step 1,
    `python scripts/verify_resume.py` at Step 6, and `python scripts/absorb_skills.py` at
    Step 8. Everything else is Read, Glob, Grep or Write. Never `ls`, `cat`, `head` or `mkdir`. The Write tool creates parent directories
    on its own.
 3. **Do not narrate.** No phase announcements, no "now analysing the job description", no
-   intermediate summaries of the JD or the track files, no printed plan. Work silently
+   intermediate summaries of the JD or the master resume, no printed plan. Work silently
    from Step 1 to Step 7, then print the report. The analysis in Steps 2 and 3 stays in
    your head; it is never written to chat or to a file.
 4. **Write all three output files in one message.** The resume, the cover letter and
@@ -267,7 +268,7 @@ that, the same as a missing JD.
 ## Step 2: Job description analysis
 
 **Read `input/jd-{slug}.txt`, `input/track-map.json` and `input/skill-map.json` together,
-in one batch.** The track map is needed at Step 3 and the skill map at Step 5, so reading
+in one batch.** The caveats are needed at Step 3 and the skill map at Step 5, so reading
 both here costs no extra round trip.
 
 Hold the following, without writing any of it to chat:
@@ -294,57 +295,47 @@ Hold the following, without writing any of it to chat:
   rather than a paraphrase. `input/soft-skills.md` holds what may be claimed against them.
 - **Role responsibilities**: what the hire would actually spend time doing, as verbs plus
   objects. Take these from the responsibilities and day-to-day sections, not the skills
-  list. Step 3 selects source files from these, so they matter more than the keyword list.
+  list. Step 5 shapes the document around these, so they matter more than the keyword list.
 
-## Step 3: Track selection
+## Step 3: Caveat check
 
-There is no combined master resume. Each `input/master-resume-{track}.md` is the whole
-record filtered to one kind of role: the skills list in Section 1, then certificates, open
-source, and behavioural examples written specifically for that kind of role. The hard facts are **not** in these files. They are shared
-and single-source in `input/profile.md`, with the project record in `input/projects.md`.
-Track selection therefore decides what the resume may *claim*, which is what makes it the
-highest-leverage step in the run.
+There is **one master resume**, `input/master-resume.md`: the skills list in Section 1,
+then certificates, open source and behavioural examples. There is no track selection, no
+primary and no secondary, and nothing in this run chooses between source files. The hard
+facts are **not** in that file. They are single-source in `input/profile.md`, with the
+project record in `input/projects.md`.
 
-`input/master-resume-bone.md` is the anonymised sharing template. Never read it, never
-select it.
+`input/master-resume-bone.md` is the anonymised sharing template. Never read it.
 
-**`input/track-map.json`, read at Step 2, decides this step.** Its `tracks` object is
-authoritative for which track files exist, so a track it does not list has no file and
-cannot be selected. The file is data only; the algorithm is here. Work these steps in order,
-reading the two thresholds from its `rules` object:
+**`input/track-map.json`, read at Step 2, is now a caveat list and nothing else.** Its
+`tracks`, `titles`, `keywords`, `default_secondary`, `domain_boost` and `examples` fields
+are vestigial; ignore them. What this step uses is every `caveats` entry inside `tracks`,
+every `global_caveats` entry, and `no_fit.keywords`:
 
-1. **`no_fit`.** If any `no_fit.keywords` entry appears in the title or must-haves, use
-   `no_fit.fallback_track` as primary with no secondary, log `no_fit.log`, and stop here.
-2. **Title.** The first track whose `titles` matches the JD title is the **primary**. This
-   resolves most postings. It does not settle the secondary.
-3. **Secondary.** Use the primary's `default_secondary` when it is set. When it is `null`,
-   score every other track by counting its `keywords` in the JD's must-haves and take the
-   best, provided it reaches `rules.min_keyword_hits`. Otherwise run with the primary alone.
-4. **No title match.** Score all tracks, apply `domain_boost`, highest is primary, second
-   only if it clears `rules.secondary_threshold` times the primary's score.
-5. **Caveats.** Check the primary's `caveats` and every `global_caveats` entry. A caveat
-   never blocks the selection: `action: select_anyway` means select the track, keep the
-   named thing out of the resume, and write its `log` text to the gaps file at Step 8.
+1. **Caveats.** A caveat fires when any of its `when` strings appears in the JD, or when it
+   carries `"always": true`. Every caveat is `action: select_anyway`, which now means the
+   run proceeds unchanged: keep the named thing out of the resume, and write its `log` text
+   to the gaps file at Step 8. A caveat never blocks and never asks.
+2. **`no_fit`.** If any `no_fit.keywords` entry appears in the title or must-haves, the
+   posting is outside what the record covers. **Still generate**, from the same master
+   resume, and log `no_fit.log` as a structural mismatch at Step 8. There is no fallback
+   file to swap in, because there is only one file.
 
 **Matching is on word boundaries, never bare substring.** `erp` must not match inside
 "enterprise", and `ai` must not match inside "maintain". Multi-word entries match as phrases.
 
-Never more than two tracks. The first is **primary**: it drives the headline, the summary,
-and which projects lead. The second widens the behavioural and certificate material only,
-not the document's shape. Neither supplies facts, which come from `input/profile.md`
-whatever the selection, and neither supplies the Technical Skills section, which comes from
-`input/skill-map.json` alone. Track selection still orders that section: each category in
-the skill map carries a `track_affinity` list, used to break ties between two categories
-the posting weights equally.
+A caveat is the record telling you what it cannot stand behind, so prefer it over your own
+reading of the JD. If a caveat and the posting's responsibilities genuinely disagree,
+follow the caveat and log the disagreement at Step 8.
 
-Prefer the map over your own reading of the JD. It encodes what the record actually
-supports, which is not the same as what the title suggests. If the map and the
-responsibilities genuinely disagree, follow the map and log the disagreement at Step 8.
+The Technical Skills section comes from `input/skill-map.json` alone, and its ordering is
+settled by JD relevance: a category's `track_affinity` list is only a tie-breaker of last
+resort, used after JD relevance and before the file's own order.
 
 ## Step 4: Read the sources
 
-**One parallel batch of Read calls: the primary track file, every secondary,
-`input/profile.md`, `input/projects.md`, `input/soft-skills.md` and `input/keywords.md`.**
+**One parallel batch of Read calls: `input/master-resume.md`, `input/profile.md`,
+`input/projects.md`, `input/soft-skills.md` and `input/keywords.md`.**
 Nothing else is read this run.
 
 | Content | Comes from |
@@ -354,13 +345,11 @@ Nothing else is read this run.
 | Technical Skills rows | **`input/skill-map.json`**, the only source for labels and values |
 | Soft-skill and competency wording for the summary | **`input/soft-skills.md`**, the only source |
 | Practice and domain wording for bullets | **`input/keywords.md`**, bullets only, never a Technical Skills row |
-| Certificates and open source, Sections 2 and 3 | **the primary track alone** |
-| Behavioural examples, Section 4 | **the primary track alone.** Written per track on purpose, so the wording differs between files by design |
+| Certificates and open source, Sections 2 and 3 | **`input/master-resume.md`** |
+| Behavioural examples, Section 4 | **`input/master-resume.md`.** Select the closest genuine example to what this posting emphasises; never invent one to fit |
 
-The two shared files are not per-track and are never duplicated into a track file, so there
-is no primary-versus-secondary question for either: read each once and use it whatever the
-selection. That is also why the old cross-track fact-drift rules are gone. A fact now exists
-in exactly one place, so two files cannot disagree about it.
+Every file above is single-source: each kind of content exists in exactly one place, so two
+files cannot disagree about it. That is why the old cross-track drift rules are gone.
 
 Each project entry carries a `Tracks` line, a `Skills used` line and a `Measured results`
 line.
@@ -372,7 +361,7 @@ ways. **Select by JD relevance alone**, inside the nine-row budget: a value matc
 in this posting does not go on the page however impressive it is, which is how an SAP
 architect resume ended up listing Rust, Scala, Dart and SAS; and a skill this posting
 requires that the map does not list is absorbed rather than dropped, which is how a Java
-posting used to ship a resume with no "Java" on it. Section 1 of the track files stays
+posting used to ship a resume with no "Java" on it. Section 1 of the master resume stays
 readable as background, but it no longer sets the labels or the values.
 
 **`Skills used` is the evidence line, and it decides placement, not presence.** A skill a
@@ -387,9 +376,10 @@ genuinely lacks, usually specific tooling. Claim what the entry evidences and ne
 gaps line says is unrecorded: naming a vector store or a model the record does not confirm
 is fabrication even when the project itself is real.
 
-Rank projects by the `Tracks` line, primary first, then secondary, then the rest. A project
-tagged for neither selected track can still supply a bullet when its `Skills used` matches
-the JD; the tag orders the work, it does not gate it.
+Rank projects by how well their `Skills used` line matches this posting, then by the
+`Tracks` line as a weak hint about the kind of role each project reads for. The tag orders
+the work, it never gates it: any project may supply a bullet when its `Skills used` matches
+the JD.
 
 Score each role for relevance to the target (90-100 high, 60-89 medium, 0-59 low), and
 note as you go the JD requirements nothing in the sources supports. That running list
@@ -404,7 +394,7 @@ Write the resume and cover letter, then issue those two Writes together with the
 
 | Shortfall | Resolution |
 |---|---|
-| Missing skill with no trace in any track file | **Absorb it into a Technical Skills row** as the posting's literal string, and claim it nowhere else. See *Skill tiering* below. Bridge to a closely adjacent recorded skill in the bullets where one exists (record has FastAPI, JD wants Spring Boot) |
+| Missing skill with no trace in the record | **Absorb it into a Technical Skills row** as the posting's literal string, and claim it nowhere else. See *Skill tiering* below. Bridge to a closely adjacent recorded skill in the bullets where one exists (record has FastAPI, JD wants Spring Boot) |
 | Missing metric | Honest qualitative phrasing, or a conservative estimate only where surrounding text implies a range. Never invent a number |
 | Missing certification | **Omit the entry entirely.** Never generate a credential, never emit an AI-generated marker, never leave a placeholder |
 | The JD's core requirement is something the candidate lacks | Still generate. Lead with the strongest genuine overlap, do not inflate, log it as a hard mismatch |
@@ -522,8 +512,9 @@ Rendering it is five decisions, in this order:
    row is worse than a missing one. Six to nine rows; nine only when the posting genuinely
    reaches all nine labels, which is rare. If a tenth were needed, the label set is still
    closed, so the value goes under the nearest rendered label instead.
-3. **Row order.** Most JD-relevant first. Break ties with `track_affinity`, preferring the
-   category that names the primary track, then with the order the file lists them in.
+3. **Row order.** Most JD-relevant first. Break remaining ties with `track_affinity`,
+   preferring the category whose affinity best matches this posting's kind of work, then
+   with the order the file lists them in.
 4. **Which values.** JD-named values first, in the posting's order of emphasis, then
    background values by JD relevance to fill the row out. 8 to 16 values, or up to 20 where
    the posting itself names that many; a row padded past what the posting asks for reads as
@@ -599,7 +590,7 @@ Bad: `Worked on performance improvements.`
 **3. Key Projects.** 2 to 3 per role, one line each, as `- Project Name - what it does and
 what the candidate built in it`. Names come verbatim from the `###` headings of
 `input/projects.md` under that company, so the resume and the record use one name for one
-thing. Select by `Tracks` line first, then by which `Skills used` lines match the posting.
+thing. Select by which `Skills used` lines match the posting, then by the `Tracks` line.
 A role with only one recorded project lists one. Never invent a project, never merge two
 into a portmanteau, and never repeat a bullet's sentence here: the bullet says what changed,
 the project line says what the thing is.
@@ -665,7 +656,7 @@ the keyword stays on the page where it belongs, and the claim around it goes.
 
 Fix the markdown until they pass. **Never reach for `--no-verify`**; that flag is for
 inspecting a work-in-progress layout, not for shipping. If a gate fails, fix only what it
-names and re-run once. Do not re-read the track files to fix a style gate.
+names and re-run once. Do not re-read the master resume to fix a style gate.
 
 Then read once more for what the gates cannot see: most relevant experience first, and
 no sentence that sounds like a press release. Facts need no cross-checking any more:
@@ -755,7 +746,7 @@ Report in chat, not in the files:
 
 **Target**: [Company] - [Position] - [Level]
 **Run slug**: [slug, and "(inferred: only one jd-*.txt present)" if it was not passed]
-**Tracks used**: [primary (facts source), then any secondary]
+**Caveats fired**: [each caveat this posting triggered, or "none"]
 
 ### Coverage
 - Must-have keywords covered: [X/Y]  ([N] evidenced in bullets, [N] listed in rows only)
@@ -774,7 +765,7 @@ Report in chat, not in the files:
 
 ### Omitted for missing detail
 - [e.g. SAP certification: recorded as held, but no name, module, date or ID. Add those
-  to Section 2 of each track file to include it next run.]
+  to Section 2 of input/master-resume.md to include it next run.]
 ```
 
 Then the handoff, with the real path filled in. The conversion command is the last line of
@@ -870,7 +861,7 @@ and it is read-only by design. Whatever it scores:
 - Never re-run it a second time hoping for a better number
 - Never expand it to the full report unless the user asks for it by name
 - A score below 80% is reported and left alone. Acting on it is the user's call, and the
-  way to act on it is a fresh run against a revised track file, not a patch to this output
+  way to act on it is a fresh run against a revised master resume, not a patch to this output
 - Hard coverage was already checked and closed at Step 6, so a low Hard number here means
   the checker read a string the posting uses that Step 2 did not capture. That is worth a
   line in the gaps log for the next run, not an edit to this one
